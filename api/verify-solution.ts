@@ -11,18 +11,23 @@ interface VercelRequest extends IncomingMessage {
   body?: unknown;
 }
 
-interface VercelResponse extends ServerResponse {
-  status(statusCode: number): VercelResponse;
-  json(body: unknown): void;
+function sendJson(
+  response: ServerResponse,
+  statusCode: number,
+  body: unknown,
+): void {
+  response.statusCode = statusCode;
+  response.setHeader("Content-Type", "application/json; charset=utf-8");
+  response.end(JSON.stringify(body));
 }
 
 export default async function handler(
   request: VercelRequest,
-  response: VercelResponse,
+  response: ServerResponse,
 ): Promise<void> {
   if (request.method !== "POST") {
     response.setHeader("Allow", "POST");
-    response.status(405).json({ error: "Method not allowed." });
+    sendJson(response, 405, { error: "Method not allowed." });
     return;
   }
 
@@ -37,7 +42,7 @@ export default async function handler(
 
     const image = parseImageDataUrl(body.image);
     const result = await verifySolution(image, body.target_object_name);
-    response.status(200).json({ success: true, data: result });
+    sendJson(response, 200, { success: true, data: result });
   } catch (error) {
     const publicError = normalizePublicError(error);
     console.error("RoomQuest verify-solution request failed", {
@@ -47,8 +52,8 @@ export default async function handler(
           ? publicError.cause.name
           : publicError.name,
     });
-    response
-      .status(publicError.statusCode)
-      .json({ error: publicError.publicMessage });
+    sendJson(response, publicError.statusCode, {
+      error: publicError.publicMessage,
+    });
   }
 }
