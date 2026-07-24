@@ -10,6 +10,7 @@ import type {
   QuestData,
   VerificationResult,
 } from "./src/types";
+import { SYSTEM_PROMPT } from "./src/data/prompts";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -17,8 +18,7 @@ const MODEL_NAME = process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash";
 const REQUEST_TIMEOUT_MS = 60_000;
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 
-const QUEST_SYSTEM_INSTRUCTION =
-  "You are the AI Gamemaster for RoomQuest. Analyze the room photo, select 3 distinct physical objects visible in the image, and generate an opening storyline and 3 rhyming riddles in strict JSON.";
+const QUEST_SYSTEM_INSTRUCTION = SYSTEM_PROMPT;
 
 const QUEST_PROMPT = [
   "Build a three-stage physical escape-room quest from this room photo.",
@@ -355,13 +355,12 @@ export async function verifySolution(
         parts: [
           { inlineData: { mimeType: image.mimeType, data: image.data } },
           {
-            text: `Target object to find: '${target}'. Analyze this submitted photo. Is this a close-up photo of the specified target object? Respond in JSON.`,
+            text: `Operating in MODE 2: SOLUTION_VERIFICATION. Target object to find: '${target}'. Analyze this submitted photo. Is this a close-up photo of the specified target object? Respond in JSON.`,
           },
         ],
       },
       config: {
-        systemInstruction:
-          "You are the RoomQuest AI Gamemaster verifying a player's solution. Be accurate, fair, playful, and never reveal the target object when the answer is wrong.",
+        systemInstruction: SYSTEM_PROMPT,
         responseMimeType: "application/json",
         responseJsonSchema: VERIFICATION_RESPONSE_SCHEMA,
       },
@@ -405,6 +404,8 @@ app.post("/api/verify-solution", async (req, res) => {
     res.json({ success: true, data: verification });
   } catch (error) {
     sendRouteError(error, res);
+  }
+});>>>>>>> 9e5324c (Add system prompt for API)
   }
 });
 
