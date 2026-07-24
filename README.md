@@ -57,6 +57,9 @@ classroom.
   clue timeouts apply penalties, and the final screen records the result.
 - **Dual mission clocks** — every quest has a 20-minute overall limit plus a
   five-minute target clock that resets for each clue.
+- **Voice narration** — story passages, riddles, and feedback can be read aloud
+  with ElevenLabs; browsers fall back to an English device voice when the
+  hosted voice service is unavailable.
 - **Responsive immersive UI** — glass panels, animated scanning effects,
   generated feedback, sound cues, and reduced-motion-aware confetti create a
   game-like experience on mobile and desktop.
@@ -113,10 +116,13 @@ flowchart LR
     Player["Player camera or upload"] --> React["React + Vite client"]
     React -->|"POST /api/analyze-room"| Express["Node + Express server"]
     React -->|"POST /api/verify-solution"| Express
+    React -->|"POST /api/tts"| Express
     Express --> Validation["Image and payload validation"]
     Validation --> Gemini["Gemini 3.6 Flash"]
     Gemini --> Structured["Structured JSON validation"]
     Structured --> React
+    Express --> ElevenLabs["ElevenLabs narration"]
+    ElevenLabs --> React
 ```
 
 The application deliberately separates browser responsibilities from AI
@@ -130,6 +136,8 @@ responsibilities:
   requests remain within Vercel's function payload limit;
 - renders loading, gameplay, verification, feedback, and completion views;
 - manages the quest state machine, timer, inventory, and modal state;
+- plays and caches narration audio, stops it during navigation, and falls back
+  to the browser speech engine when hosted narration is unavailable;
 - calls same-origin API endpoints through a typed request helper;
 - applies a 70-second browser timeout so stalled requests remain recoverable.
 
@@ -142,6 +150,8 @@ responsibilities:
   individual solution images below 3 MB, while the browser permits source JPEG,
   PNG, and WebP files under 15 MB each;
 - calls Gemini with a 60-second timeout and up to three attempts;
+- validates narration text and proxies optional ElevenLabs requests without
+  exposing the voice API key;
 - enforces structured output schemas;
 - validates clue count, unique IDs, unique target objects, riddle line count, and
   feedback fields;
@@ -260,6 +270,23 @@ Errors use an appropriate HTTP status with a safe message:
 }
 ```
 
+### `POST /api/tts`
+
+Converts a story, riddle, or feedback passage into MPEG narration when
+`ELEVENLABS_API_KEY` is configured.
+
+Request:
+
+```json
+{
+  "text": "The first seal flickers to life."
+}
+```
+
+A successful response is an `audio/mpeg` body. If ElevenLabs is not configured
+or is temporarily unavailable, the React client automatically uses the
+browser's built-in speech engine instead.
+
 ## Technology stack
 
 | Layer | Technology | Responsibility |
@@ -270,6 +297,7 @@ Errors use an appropriate HTTP status with a safe message:
 | API server | Node.js + Express 4 | Secure API boundary and production static serving |
 | AI SDK | `@google/genai` | Gemini multimodal and structured-output requests |
 | AI model | `gemini-3.6-flash` | Room analysis, riddle generation, and photo verification |
+| Voice service | ElevenLabs TTS | Optional atmospheric narration with device fallback |
 | Language | TypeScript 5 | Shared types across browser and server |
 | Bundling | esbuild | Production server bundle |
 
@@ -277,15 +305,17 @@ Errors use an appropriate HTTP status with a safe message:
 
 ```text
 roomquest/
-├── server.ts                      # Express API, Gemini calls, and validation
+├── server.ts                      # Express API, AI calls, and validation
 ├── api/
 │   ├── analyze-room.ts            # Vercel quest-generation function
 │   ├── health.ts                  # Vercel runtime health check
+│   ├── tts.ts                     # Vercel narration function
 │   └── verify-solution.ts         # Vercel verification function
 ├── src/
 │   ├── api/
 │   │   └── roomQuest.ts           # Typed browser API client
 │   ├── components/
+│   │   ├── AudioReadButton.tsx    # Reusable narration control
 │   │   ├── HostSetupView.tsx      # Room camera/upload step
 │   │   ├── LoadingScreenView.tsx  # Quest-generation state
 │   │   ├── GameplayView.tsx       # Narrative and current riddle
@@ -297,9 +327,11 @@ roomquest/
 │   │   └── sampleRooms.ts         # Optional sample room presets
 │   ├── utils/
 │   │   ├── audio.ts               # Interaction sound effects
-│   │   └── image.ts               # Client resize and compression pipeline
+│   │   ├── image.ts               # Client resize and compression pipeline
+│   │   └── useSpeech.ts           # Hosted narration and device fallback
 │   ├── server/
-│   │   └── roomQuest.ts           # Shared Gemini and validation logic
+│   │   ├── roomQuest.ts           # Shared Gemini and validation logic
+│   │   └── tts.ts                 # Shared ElevenLabs proxy and validation
 │   ├── App.tsx                    # Game state and event orchestration
 │   ├── index.css                  # Global effects and animations
 │   ├── main.tsx                   # React entry point
@@ -318,6 +350,7 @@ roomquest/
 - Node.js 20 or newer
 - npm
 - a Gemini API key
+- optionally, an ElevenLabs API key for hosted narration
 
 ### Installation
 
@@ -353,6 +386,7 @@ roomquest/
    ```dotenv
    GEMINI_API_KEY="your-api-key"
    GEMINI_MODEL="gemini-3.6-flash"
+   ELEVENLABS_API_KEY="your-elevenlabs-key"
    PORT="3000"
    ```
 
@@ -373,6 +407,9 @@ and Vite runs as middleware for the React client.
 | --- | --- | --- | --- |
 | `GEMINI_API_KEY` | Yes | None | Server-only credential used by `@google/genai` |
 | `GEMINI_MODEL` | No | `gemini-3.6-flash` | Gemini model used by both AI operations |
+| `ELEVENLABS_API_KEY` | No | None | Server-only credential for hosted voice narration |
+| `ELEVENLABS_VOICE_ID` | No | `JBFqnCBsd6RMkjVDRZzb` | ElevenLabs narrator voice |
+| `ELEVENLABS_MODEL_ID` | No | `eleven_multilingual_v2` | ElevenLabs speech model |
 | `PORT` | No | `3000` | Port used by the Express server |
 | `NODE_ENV` | No | Development | Set to `production` when serving the built app |
 
@@ -410,6 +447,8 @@ npm start
 For a hosted environment:
 
 - configure `GEMINI_API_KEY` as a protected server-side environment variable;
+- optionally configure `ELEVENLABS_API_KEY` for hosted narration; device
+  narration remains available without it;
 - optionally configure `GEMINI_MODEL` and `PORT`;
 - run the production build before starting the server;
 - use HTTPS so mobile browsers can grant camera access;
@@ -421,7 +460,7 @@ The current public deployment is available at
 ## Security and privacy
 
 - `.env` files are excluded from Git; `.env.example` contains placeholders only.
-- The Gemini API key is read exclusively by the Node server.
+- Gemini and ElevenLabs API keys are read exclusively by server-side code.
 - Images are sent from the browser to the same-origin Express API and then to
   Gemini as inline request data.
 - The application does not write uploaded photos to disk or store them in a
@@ -454,6 +493,12 @@ take a local room photo instead.
 
 Wait briefly and retry. The server retries transient provider failures, and the
 UI returns to a usable state instead of accepting the clue automatically.
+
+### Voice narration uses the device voice
+
+Add `ELEVENLABS_API_KEY` to the server or Vercel environment and redeploy to use
+the hosted narrator. Device narration is the expected fallback when the key is
+missing, the voice service is unavailable, or audio playback is blocked.
 
 ### The build succeeds but `npm start` cannot find files
 

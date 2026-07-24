@@ -10,6 +10,9 @@
     "api/health.ts": {
       "maxDuration": 10
     },
+    "api/tts.ts": {
+      "maxDuration": 30
+    },
     "api/verify-solution.ts": {
       "maxDuration": 60
     }

@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ClueItem } from '../types';
 import { playSound } from '../utils/audio';
+import { useSpeech } from '../utils/useSpeech';
+import { AudioReadButton } from './AudioReadButton';
 
 interface GameplayViewProps {
   currentStage: number;
@@ -33,6 +35,18 @@ export const GameplayView: React.FC<GameplayViewProps> = ({
     .toString()
     .padStart(2, '0')}:${clueSeconds.toString().padStart(2, '0')}`;
   const clueTimeIsLow = clueTimerSeconds <= 60;
+  const {
+    speak,
+    stop,
+    isSpeaking,
+    isLoading,
+    speakingText,
+    errorMessage: speechMessage,
+  } = useSpeech();
+
+  useEffect(() => {
+    stop();
+  }, [currentStage, stop]);
 
   return (
     <main className="relative z-10 pt-[88px] pb-[100px] px-5 min-h-[calc(100vh-80px)] flex flex-col justify-between max-w-lg mx-auto w-full custom-scrollbar">
@@ -40,16 +54,29 @@ export const GameplayView: React.FC<GameplayViewProps> = ({
         {/* Story Narrative Panel */}
         <div className="glass-panel rounded-[24px] p-6 relative overflow-hidden group border border-white/10 shadow-[0_0_30px_rgba(16,185,129,0.1)]">
           <div className="relative z-10 flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-              <h2 className="text-[11px] uppercase tracking-[0.3em] text-white/50 border-l-2 border-emerald-500 pl-3 font-semibold">
-                The Story Unfolds
-              </h2>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <h2 className="text-[11px] uppercase tracking-[0.3em] text-white/50 border-l-2 border-emerald-500 pl-3 font-semibold">
+                  The Story Unfolds
+                </h2>
+              </div>
+              <AudioReadButton
+                label="Listen"
+                isLoading={isLoading && speakingText === openingNarrative}
+                isSpeaking={isSpeaking && speakingText === openingNarrative}
+                onToggle={() => void speak(openingNarrative)}
+              />
             </div>
             
             <p className="text-base font-serif leading-relaxed text-white/90 italic">
               "{openingNarrative}"
             </p>
+            {speechMessage && (
+              <p className="font-['Space_Grotesk'] text-[9px] leading-relaxed text-indigo-200/70">
+                {speechMessage}
+              </p>
+            )}
           </div>
         </div>
 
@@ -107,9 +134,21 @@ export const GameplayView: React.FC<GameplayViewProps> = ({
               </div>
             </div>
 
-            <h3 className="text-xs uppercase tracking-[0.4em] text-emerald-400 mb-4 font-bold">
-              The Clue
-            </h3>
+            <div className="mb-4 flex w-full items-center justify-between px-2">
+              <h3 className="text-xs font-bold uppercase tracking-[0.4em] text-emerald-400">
+                The Clue
+              </h3>
+              <AudioReadButton
+                label="Listen"
+                isLoading={
+                  isLoading && speakingText === currentClue.poetic_clue
+                }
+                isSpeaking={
+                  isSpeaking && speakingText === currentClue.poetic_clue
+                }
+                onToggle={() => void speak(currentClue.poetic_clue)}
+              />
+            </div>
 
             <blockquote className="text-xl sm:text-2xl font-serif italic text-white leading-relaxed px-2 font-light">
               "{currentClue.poetic_clue}"
@@ -118,6 +157,7 @@ export const GameplayView: React.FC<GameplayViewProps> = ({
             <div className="mt-8 w-full pt-6 border-t border-white/10">
               <button
                 onClick={() => {
+                  stop();
                   playSound.click();
                   onOpenCamera();
                 }}

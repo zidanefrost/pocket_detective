@@ -1,6 +1,8 @@
 import React from 'react';
 import { VerificationResult, ClueItem } from '../types';
 import { playSound } from '../utils/audio';
+import { useSpeech } from '../utils/useSpeech';
+import { AudioReadButton } from './AudioReadButton';
 
 interface FeedbackModalProps {
   isCorrect: boolean;
@@ -23,6 +25,17 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
   onHostOverride,
   scoreDelta,
 }) => {
+  const {
+    speak,
+    stop,
+    isSpeaking,
+    isLoading,
+    speakingText,
+    errorMessage: speechMessage,
+  } = useSpeech();
+  const storyText =
+    currentClue.storyline_continuation || result.feedback_message;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/85 backdrop-blur-md">
       <div className="w-full max-w-md z-10 relative">
@@ -61,16 +74,30 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
 
             {/* Storyline Continuation */}
             <div className="bg-[#121316] border border-white/10 rounded-2xl p-4 my-3 text-left w-full shadow-inner">
-              <span className="font-['Space_Grotesk'] text-[10px] text-indigo-400 uppercase tracking-wider font-bold block mb-1">
-                Storyline Progress:
-              </span>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="font-['Space_Grotesk'] text-[10px] text-indigo-400 uppercase tracking-wider font-bold block">
+                  Storyline Progress:
+                </span>
+                <AudioReadButton
+                  label="Listen"
+                  isLoading={isLoading && speakingText === storyText}
+                  isSpeaking={isSpeaking && speakingText === storyText}
+                  onToggle={() => void speak(storyText)}
+                />
+              </div>
               <p className="font-serif italic text-xs text-white/90 leading-relaxed">
-                "{currentClue.storyline_continuation || result.feedback_message}"
+                "{storyText}"
               </p>
+              {speechMessage && (
+                <p className="mt-2 font-['Space_Grotesk'] text-[9px] leading-relaxed text-indigo-200/70">
+                  {speechMessage}
+                </p>
+              )}
             </div>
 
             <button
               onClick={() => {
+                stop();
                 playSound.click();
                 onNextClue();
               }}
@@ -105,9 +132,21 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
             </div>
 
             <div className="bg-[#121316] border border-rose-400/20 rounded-2xl p-4 my-3 text-left w-full">
-              <span className="font-['Space_Grotesk'] text-[10px] text-rose-300 uppercase tracking-wider font-bold block mb-1">
-                Gamemaster Feedback:
-              </span>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="font-['Space_Grotesk'] text-[10px] text-rose-300 uppercase tracking-wider font-bold block">
+                  Gamemaster Feedback:
+                </span>
+                <AudioReadButton
+                  label="Listen"
+                  isLoading={
+                    isLoading && speakingText === result.feedback_message
+                  }
+                  isSpeaking={
+                    isSpeaking && speakingText === result.feedback_message
+                  }
+                  onToggle={() => void speak(result.feedback_message)}
+                />
+              </div>
               <p className="font-sans text-xs text-white/80 leading-relaxed">
                 {result.feedback_message ||
                   "That photo does not match the current clue. Read the riddle closely and try again!"}
@@ -117,11 +156,17 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                   Vision detected: {result.detected_item}
                 </p>
               )}
+              {speechMessage && (
+                <p className="mt-2 font-['Space_Grotesk'] text-[9px] leading-relaxed text-indigo-200/70">
+                  {speechMessage}
+                </p>
+              )}
             </div>
 
             <div className="mt-2 flex w-full flex-col gap-2">
               <button
                 onClick={() => {
+                  stop();
                   playSound.click();
                   onTryAgain();
                 }}
@@ -133,6 +178,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
 
               <button
                 onClick={() => {
+                  stop();
                   playSound.click();
                   onHostOverride();
                 }}

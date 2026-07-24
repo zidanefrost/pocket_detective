@@ -12,6 +12,10 @@ import {
   PublicError,
   verifySolution,
 } from "./src/server/roomQuest";
+import {
+  normalizeTtsError,
+  synthesizeSpeech,
+} from "./src/server/tts";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -57,6 +61,31 @@ app.post("/api/verify-solution", async (request, response) => {
     response.json({ success: true, data: verification });
   } catch (error) {
     sendRouteError(error, response);
+  }
+});
+
+app.post("/api/tts", async (request, response) => {
+  try {
+    const speech = await synthesizeSpeech(request.body?.text);
+    response
+      .status(200)
+      .set({
+        "Cache-Control": "private, no-store",
+        "Content-Type": speech.contentType,
+      })
+      .send(Buffer.from(speech.audio));
+  } catch (error) {
+    const publicError = normalizeTtsError(error);
+    console.error("RoomQuest TTS request failed", {
+      statusCode: publicError.statusCode,
+      errorType:
+        publicError.cause instanceof Error
+          ? publicError.cause.name
+          : publicError.name,
+    });
+    response
+      .status(publicError.statusCode)
+      .json({ error: publicError.publicMessage });
   }
 });
 
