@@ -7,9 +7,6 @@
     "api/analyze-room.ts": {
       "maxDuration": 60
     },
-    "api/diagnostic.ts": {
-      "maxDuration": 10
-    },
     "api/health.ts": {
       "maxDuration": 10
     },

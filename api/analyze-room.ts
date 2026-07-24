@@ -3,7 +3,7 @@ import {
   normalizePublicError,
   parseImageDataUrl,
   PublicError,
-} from "../src/server/roomQuest";
+} from "../src/server/roomQuest.js";
 
 async function parseRequestBody(request: Request): Promise<Record<string, unknown>> {
   try {
