@@ -22,13 +22,17 @@ export const MAX_ROOM_IMAGES_TOTAL_BYTES = 3 * 1024 * 1024;
 const QUEST_PROMPT = [
   "Build a three-stage physical escape-room quest from the submitted view or views of one room.",
   "Use all submitted views to understand the room, but do not assume an object exists unless it is clearly visible.",
-  "Select exactly three distinct, clearly visible physical objects.",
+  "First, identify what kind of room this actually is — its function, era, style, and mood (e.g. a server room, a kid's bedroom, a workshop, a study) — and let that real character set the mystery's genre and stakes instead of defaulting to a generic template.",
+  "Then, privately invent one specific closed mystery grounded in that room's character: a problem introduced at the start and exactly how it gets resolved. Do not output this reasoning step directly.",
+  "Then scan the room for at least five candidate objects and select exactly three distinct, clearly visible physical objects that YOUR invented mystery specifically needs: one that opens the case, one that complicates or redirects it, and one that resolves it.",
+  "Do not just pick the three most obvious or generic objects in the room (e.g. lamp, mug, plant) — choose objects because the story needs them, even if a less prominent object serves the plot better than a more prominent one, provided it is still clearly visible and unambiguous enough to verify from a close-up photo.",
   "Each target_object_name must be visually specific enough to verify in a close-up.",
   "Do not select people, body parts, reflections, screens, text, or mostly hidden objects.",
   "Use unique positive integer clue IDs.",
   "Each poetic_clue must contain 2 to 4 short rhyming lines separated by newlines.",
   "Keep the story playful, family-friendly, suspenseful, and concise.",
-  "A storyline_continuation must celebrate its solved clue without revealing another answer.",
+  "The opening_narrative must introduce the mystery's problem. The final clue's storyline_continuation must resolve that problem with a satisfying answer or reveal, giving the whole case narrative closure.",
+  "Every non-final storyline_continuation must celebrate its solved clue and advance the case without revealing another target's answer.",
 ].join("\n");
 
 const QUEST_RESPONSE_SCHEMA = {
