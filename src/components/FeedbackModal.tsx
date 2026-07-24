@@ -9,6 +9,7 @@ interface FeedbackModalProps {
   isFinalStage: boolean;
   onNextClue: () => void;
   onTryAgain: () => void;
+  onHostOverride?: () => void;
 }
 
 export const FeedbackModal: React.FC<FeedbackModalProps> = ({
@@ -18,6 +19,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
   isFinalStage,
   onNextClue,
   onTryAgain,
+  onHostOverride,
 }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/85 backdrop-blur-md">
@@ -109,16 +111,31 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
               )}
             </div>
 
-            <button
-              onClick={() => {
-                playSound.click();
-                onTryAgain();
-              }}
-              className="mt-2 py-3.5 px-6 rounded-full bg-rose-500/15 border border-rose-400/40 text-rose-200 font-['Space_Grotesk'] font-bold text-xs uppercase tracking-widest hover:bg-rose-500/30 active:scale-95 transition-all flex items-center justify-center gap-2 w-full"
-            >
-              Try Again
-              <span className="material-symbols-outlined text-base">sync</span>
-            </button>
+            <div className="flex flex-col gap-2 w-full mt-2">
+              <button
+                onClick={() => {
+                  playSound.click();
+                  onTryAgain();
+                }}
+                className="py-3.5 px-6 rounded-full bg-rose-500/15 border border-rose-400/40 text-rose-200 font-['Space_Grotesk'] font-bold text-xs uppercase tracking-widest hover:bg-rose-500/30 active:scale-95 transition-all flex items-center justify-center gap-2 w-full"
+              >
+                Try Again
+                <span className="material-symbols-outlined text-base">sync</span>
+              </button>
+
+              {onHostOverride && (
+                <button
+                  onClick={() => {
+                    playSound.click();
+                    onHostOverride();
+                  }}
+                  className="py-2.5 px-4 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 font-['Space_Grotesk'] font-semibold text-[11px] uppercase tracking-wider hover:bg-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-1.5 w-full"
+                >
+                  <span className="material-symbols-outlined text-sm">verified_user</span>
+                  Host Override (Mark Correct)
+                </button>
+              )}
+            </div>
           </section>
         )}
       </div>

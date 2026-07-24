@@ -73,8 +73,9 @@ async function postJson<T>(
   }
 }
 
-export function generateQuest(roomImage: string): Promise<QuestData> {
-  return postJson<QuestData>("/api/analyze-room", { image: roomImage });
+export function generateQuest(roomImages: string | string[]): Promise<QuestData> {
+  const images = Array.isArray(roomImages) ? roomImages : [roomImages];
+  return postJson<QuestData>("/api/analyze-room", { images });
 }
 
 export function verifySolution(

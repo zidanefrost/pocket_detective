@@ -317,13 +317,20 @@ function normalizeGeminiError(error: unknown): PublicError {
   );
 }
 
-export async function generateQuest(image: ParsedImage): Promise<QuestData> {
+export async function generateQuest(images: ParsedImage[]): Promise<QuestData> {
+  if (images.length === 0) {
+    throw new PublicError(400, "At least one room photo is required.");
+  }
   try {
+    const imageParts = images.map((img) => ({
+      inlineData: { mimeType: img.mimeType, data: img.data },
+    }));
+
     const response = await getGenAI().models.generateContent({
       model: MODEL_NAME,
       contents: {
         parts: [
-          { inlineData: { mimeType: image.mimeType, data: image.data } },
+          ...imageParts,
           { text: QUEST_PROMPT },
         ],
       },
@@ -385,8 +392,22 @@ app.use(express.json({ limit: "20mb" }));
 
 app.post("/api/analyze-room", async (req, res) => {
   try {
-    const image = parseImageDataUrl(req.body?.image);
-    const questData = await generateQuest(image);
+    const rawImages = Array.isArray(req.body?.images)
+      ? req.body.images
+      : req.body?.image
+        ? [req.body.image]
+        : [];
+
+    if (rawImages.length === 0) {
+      throw new PublicError(400, "At least one room photo is required.");
+    }
+
+    const imagesToParse = rawImages.slice(0, 3);
+    const parsedImages = imagesToParse.map((img: unknown) =>
+      parseImageDataUrl(img),
+    );
+
+    const questData = await generateQuest(parsedImages);
     res.json({ success: true, data: questData });
   } catch (error) {
     sendRouteError(error, res);
@@ -404,8 +425,6 @@ app.post("/api/verify-solution", async (req, res) => {
     res.json({ success: true, data: verification });
   } catch (error) {
     sendRouteError(error, res);
-  }
-});>>>>>>> 9e5324c (Add system prompt for API)
   }
 });
 
