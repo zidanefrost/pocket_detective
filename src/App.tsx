@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { generateQuest, verifySolution } from "./api/roomQuest";
 import { BackgroundShader } from "./components/BackgroundShader";
@@ -21,7 +21,11 @@ import type {
 } from "./types";
 import { playSound } from "./utils/audio";
 
-const QUEST_DURATION_SECONDS = 42 * 60 + 15;
+const QUEST_DURATION_SECONDS = 20 * 60;
+const CLUE_DURATION_SECONDS = 5 * 60;
+const CORRECT_ANSWER_POINTS = 100;
+const WRONG_ANSWER_PENALTY = 25;
+const CLUE_TIMEOUT_PENALTY = 25;
 
 export default function App() {
   const [step, setStep] = useState<GameState>("SCAN_ROOM");
@@ -36,20 +40,67 @@ export default function App() {
   const [solutionImage, setSolutionImage] = useState<string | null>(null);
   const [inventory, setInventory] = useState<SolvedInventoryItem[]>([]);
   const [timerSeconds, setTimerSeconds] = useState(QUEST_DURATION_SECONDS);
+  const [clueTimerSeconds, setClueTimerSeconds] = useState(
+    CLUE_DURATION_SECONDS,
+  );
+  const [score, setScore] = useState(0);
+  const [clueTimedOut, setClueTimedOut] = useState(false);
+  const [gameOverReason, setGameOverReason] = useState<
+    "completed" | "timeout"
+  >("completed");
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const gameExpiredRef = useRef(false);
 
   useEffect(() => {
-    if (!isTimerRunning || timerSeconds <= 0) {
+    if (!isTimerRunning) {
       return;
     }
     const interval = window.setInterval(() => {
       setTimerSeconds((previous) => Math.max(0, previous - 1));
+      if (!lastFeedback?.is_correct) {
+        setClueTimerSeconds((previous) => Math.max(0, previous - 1));
+      }
     }, 1_000);
     return () => window.clearInterval(interval);
+  }, [isTimerRunning, lastFeedback?.is_correct]);
+
+  useEffect(() => {
+    if (!isTimerRunning || timerSeconds > 0) {
+      return;
+    }
+    gameExpiredRef.current = true;
+    setIsTimerRunning(false);
+    setIsCameraModalOpen(false);
+    setLastFeedback(null);
+    setGameOverReason("timeout");
+    setStep("GAME_OVER");
+    playSound.failure();
   }, [isTimerRunning, timerSeconds]);
+
+  useEffect(() => {
+    if (
+      !isTimerRunning ||
+      clueTimerSeconds > 0 ||
+      clueTimedOut ||
+      lastFeedback?.is_correct
+    ) {
+      return;
+    }
+    setClueTimedOut(true);
+    setScore((previous) => previous - CLUE_TIMEOUT_PENALTY);
+    setErrorMessage(
+      `Clue time expired: -${CLUE_TIMEOUT_PENALTY} points. You can keep searching while the mission clock runs.`,
+    );
+    playSound.failure();
+  }, [
+    clueTimedOut,
+    clueTimerSeconds,
+    isTimerRunning,
+    lastFeedback?.is_correct,
+  ]);
 
   useEffect(() => {
     setIsInventoryOpen(activeTab === "inventory" || activeTab === "map");
@@ -66,6 +117,11 @@ export default function App() {
       setCurrentClueIdx(0);
       setInventory([]);
       setTimerSeconds(QUEST_DURATION_SECONDS);
+      setClueTimerSeconds(CLUE_DURATION_SECONDS);
+      setScore(0);
+      setClueTimedOut(false);
+      setGameOverReason("completed");
+      gameExpiredRef.current = false;
       setIsTimerRunning(true);
       setStep("PLAYING_CLUE");
       setActiveTab("clues");
@@ -118,16 +174,27 @@ export default function App() {
         capturedImage,
         currentClue.target_object_name,
       );
+      if (gameExpiredRef.current) {
+        return;
+      }
       setLastFeedback(result);
 
       if (result.is_correct) {
         recordSolvedClue(currentClue, capturedImage);
+        setScore((previous) => previous + CORRECT_ANSWER_POINTS);
+        if (currentClueIdx === gameData.clues.length - 1) {
+          setIsTimerRunning(false);
+        }
         playSound.success();
       } else {
+        setScore((previous) => previous - WRONG_ANSWER_PENALTY);
         playSound.failure();
       }
       setStep("PLAYING_CLUE");
     } catch (error) {
+      if (gameExpiredRef.current) {
+        return;
+      }
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -139,11 +206,13 @@ export default function App() {
   };
 
   const handleNextClue = () => {
-    if (!gameData) {
+    if (!gameData || gameExpiredRef.current) {
       return;
     }
     if (currentClueIdx < gameData.clues.length - 1) {
       setCurrentClueIdx((previous) => previous + 1);
+      setClueTimerSeconds(CLUE_DURATION_SECONDS);
+      setClueTimedOut(false);
       setSolutionImage(null);
       setLastFeedback(null);
       setActiveTab("clues");
@@ -152,6 +221,7 @@ export default function App() {
 
     setIsTimerRunning(false);
     setLastFeedback(null);
+    setGameOverReason("completed");
     setStep("GAME_OVER");
     playSound.success();
   };
@@ -164,7 +234,7 @@ export default function App() {
 
   const handleHostOverride = () => {
     const currentClue = gameData?.clues[currentClueIdx];
-    if (!currentClue) {
+    if (!currentClue || gameExpiredRef.current) {
       return;
     }
     recordSolvedClue(currentClue, solutionImage ?? undefined);
@@ -182,6 +252,11 @@ export default function App() {
     setLastFeedback(null);
     setInventory([]);
     setTimerSeconds(QUEST_DURATION_SECONDS);
+    setClueTimerSeconds(CLUE_DURATION_SECONDS);
+    setScore(0);
+    setClueTimedOut(false);
+    setGameOverReason("completed");
+    gameExpiredRef.current = false;
     setIsCameraModalOpen(false);
     setIsInventoryOpen(false);
     setErrorMessage(null);
@@ -203,7 +278,8 @@ export default function App() {
       <Header
         currentStage={currentStage}
         totalStages={totalStages}
-        timerSeconds={isTimerRunning ? timerSeconds : undefined}
+        timerSeconds={gameData ? timerSeconds : undefined}
+        score={gameData ? score : undefined}
         showBack={step !== "SCAN_ROOM"}
         onBack={handleResetQuest}
       />
@@ -236,6 +312,11 @@ export default function App() {
           totalStages={totalStages}
           openingNarrative={gameData.opening_narrative}
           currentClue={currentClue}
+          clueTimerSeconds={clueTimerSeconds}
+          score={score}
+          correctAnswerPoints={CORRECT_ANSWER_POINTS}
+          wrongAnswerPenalty={WRONG_ANSWER_PENALTY}
+          clueTimeoutPenalty={CLUE_TIMEOUT_PENALTY}
           onOpenCamera={() => setIsCameraModalOpen(true)}
         />
       )}
@@ -253,6 +334,11 @@ export default function App() {
           onNextClue={handleNextClue}
           onTryAgain={handleTryAgain}
           onHostOverride={handleHostOverride}
+          scoreDelta={
+            lastFeedback.is_correct
+              ? CORRECT_ANSWER_POINTS
+              : -WRONG_ANSWER_PENALTY
+          }
         />
       )}
 
@@ -260,6 +346,9 @@ export default function App() {
         <QuestCompleteView
           inventory={inventory}
           elapsedSeconds={QUEST_DURATION_SECONDS - timerSeconds}
+          score={score}
+          outcome={gameOverReason}
+          totalStages={totalStages}
           onNewQuest={handleResetQuest}
         />
       )}

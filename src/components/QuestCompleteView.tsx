@@ -14,14 +14,21 @@ const CONFETTI_PIECES = Array.from({ length: 36 }, (_, index) => ({
 interface QuestCompleteViewProps {
   inventory: SolvedInventoryItem[];
   elapsedSeconds: number;
+  score: number;
+  outcome: 'completed' | 'timeout';
+  totalStages: number;
   onNewQuest: () => void;
 }
 
 export const QuestCompleteView: React.FC<QuestCompleteViewProps> = ({
   inventory,
   elapsedSeconds,
+  score,
+  outcome,
+  totalStages,
   onNewQuest,
 }) => {
+  const completed = outcome === 'completed';
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
@@ -34,49 +41,91 @@ export const QuestCompleteView: React.FC<QuestCompleteViewProps> = ({
         className="fixed inset-0 pointer-events-none overflow-hidden"
         aria-hidden="true"
       >
-        {CONFETTI_PIECES.map((piece) => (
-          <span
-            key={piece.id}
-            className="confetti-piece"
-            style={{
-              left: piece.left,
-              animationDelay: piece.delay,
-              animationDuration: piece.duration,
-              backgroundColor: piece.color,
-            }}
-          />
-        ))}
+        {completed &&
+          CONFETTI_PIECES.map((piece) => (
+            <span
+              key={piece.id}
+              className="confetti-piece"
+              style={{
+                left: piece.left,
+                animationDelay: piece.delay,
+                animationDuration: piece.duration,
+                backgroundColor: piece.color,
+              }}
+            />
+          ))}
       </div>
 
-      <div className="bg-[#0a0b0e] glass-panel success-glow rounded-[32px] p-8 w-full flex flex-col items-center text-center gap-5 border border-emerald-500/50 shadow-[0_0_60px_rgba(16,185,129,0.3)] animate-in fade-in zoom-in-95 duration-300 relative z-10 overflow-hidden">
+      <div
+        className={`bg-[#0a0b0e] glass-panel rounded-[32px] p-8 w-full flex flex-col items-center text-center gap-5 border animate-in fade-in zoom-in-95 duration-300 relative z-10 overflow-hidden ${
+          completed
+            ? 'success-glow border-emerald-500/50 shadow-[0_0_60px_rgba(16,185,129,0.3)]'
+            : 'error-glow border-rose-400/40 shadow-[0_0_50px_rgba(244,63,94,0.2)]'
+        }`}
+      >
         {/* Corner Brackets */}
         <div className="absolute top-5 left-5 w-3.5 h-3.5 border-t border-l border-white/20 pointer-events-none" />
         <div className="absolute top-5 right-5 w-3.5 h-3.5 border-t border-r border-white/20 pointer-events-none" />
         <div className="absolute bottom-5 left-5 w-3.5 h-3.5 border-b border-l border-white/20 pointer-events-none" />
         <div className="absolute bottom-5 right-5 w-3.5 h-3.5 border-b border-r border-white/20 pointer-events-none" />
 
-        <div className="relative w-20 h-20 flex items-center justify-center rounded-full bg-emerald-500/15 border border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.5)]">
-          <span className="material-symbols-outlined text-5xl text-emerald-400 animate-bounce">
-            key
+        <div
+          className={`relative w-20 h-20 flex items-center justify-center rounded-full border ${
+            completed
+              ? 'bg-emerald-500/15 border-emerald-500/50 shadow-[0_0_30px_rgba(16,185,129,0.5)]'
+              : 'bg-rose-500/10 border-rose-400/40 shadow-[0_0_25px_rgba(244,63,94,0.3)]'
+          }`}
+        >
+          <span
+            className={`material-symbols-outlined text-5xl ${
+              completed ? 'text-emerald-400 animate-bounce' : 'text-rose-300'
+            }`}
+          >
+            {completed ? 'key' : 'timer_off'}
           </span>
         </div>
 
         <div>
-          <span className="font-['Space_Grotesk'] text-xs text-indigo-400 uppercase tracking-widest font-bold">
-            MISSION ACCOMPLISHED
+          <span
+            className={`font-['Space_Grotesk'] text-xs uppercase tracking-widest font-bold ${
+              completed ? 'text-indigo-400' : 'text-rose-300'
+            }`}
+          >
+            {completed ? 'MISSION ACCOMPLISHED' : 'MISSION CLOCK EXPIRED'}
           </span>
           <h1 className="font-serif italic font-extrabold text-3xl text-white tracking-tight uppercase mt-1 neon-text-glow">
-            ROOM ESCAPED!
+            {completed ? 'ROOM ESCAPED!' : 'TIME EXPIRED'}
           </h1>
           <p className="font-sans text-xs text-white/70 mt-1">
-            Total Escape Time: <span className="text-emerald-400 font-bold">{formatTime(elapsedSeconds)}</span>
+            {completed
+              ? 'Every object was recovered before the mission clock ran out.'
+              : 'The 20-minute clock ran out, but your recovered evidence still counts.'}
           </p>
+        </div>
+
+        <div className="grid w-full grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-white/10 bg-[#121316] p-4">
+            <span className="font-['Space_Grotesk'] text-[9px] font-bold uppercase tracking-widest text-white/45">
+              Final score
+            </span>
+            <p className="mt-1 font-['Space_Grotesk'] text-2xl font-bold text-amber-300">
+              {score}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-[#121316] p-4">
+            <span className="font-['Space_Grotesk'] text-[9px] font-bold uppercase tracking-widest text-white/45">
+              {completed ? 'Escape time' : 'Mission time'}
+            </span>
+            <p className="mt-1 font-['Space_Grotesk'] text-lg font-bold text-emerald-400">
+              {formatTime(elapsedSeconds)}
+            </p>
+          </div>
         </div>
 
         {/* Evidence Log Summary */}
         <div className="w-full text-left bg-[#121316] rounded-2xl p-5 border border-white/10 space-y-3 shadow-inner">
           <h3 className="font-['Space_Grotesk'] text-xs uppercase tracking-wider text-emerald-400 font-bold border-b border-white/10 pb-2">
-            Unlocked Evidence Log ({inventory.length}/3)
+            Unlocked Evidence Log ({inventory.length}/{totalStages})
           </h3>
           <div className="space-y-3">
             {inventory.map((item) => (

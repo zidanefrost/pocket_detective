@@ -5,6 +5,7 @@ interface HeaderProps {
   currentStage?: number;
   totalStages?: number;
   timerSeconds?: number;
+  score?: number;
   onBack?: () => void;
   showBack?: boolean;
 }
@@ -13,6 +14,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentStage,
   totalStages = 3,
   timerSeconds,
+  score,
   onBack,
   showBack = false,
 }) => {
@@ -22,7 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const isLowTime = timerSeconds !== undefined && timerSeconds < 300; // < 5 mins
+  const isLowTime = timerSeconds !== undefined && timerSeconds < 120;
 
   return (
     <header className="fixed top-0 w-full z-50 bg-[#08090a]/85 backdrop-blur-xl border-b border-white/10 shadow-[0_0_40px_rgba(16,185,129,0.12)]">
@@ -56,10 +58,10 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           {currentStage ? (
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex flex-col items-end">
+            <div className="hidden items-center gap-3 sm:flex">
+              <div className="flex flex-col items-end">
                 <span className="text-[9px] uppercase tracking-widest text-white/40 mb-1">Progress</span>
                 <div className="flex gap-1">
                   {[1, 2, 3].map((s) => (
@@ -78,6 +80,18 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           ) : null}
 
+          {score !== undefined ? (
+            <div
+              className="flex items-center gap-1 rounded-full border border-amber-400/30 bg-amber-500/10 px-2.5 py-1 text-amber-300"
+              title="Current score"
+            >
+              <span className="material-symbols-outlined text-base">stars</span>
+              <span className="font-['Space_Grotesk'] text-xs font-bold tracking-wider">
+                {score}
+              </span>
+            </div>
+          ) : null}
+
           {timerSeconds !== undefined ? (
             <div
               className={`flex items-center gap-1.5 rounded-full px-3 py-1 border backdrop-blur-md transition-colors ${
@@ -85,6 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'bg-rose-500/20 border-rose-500/40 text-rose-300 animate-pulse'
                   : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
               }`}
+              title="Mission time remaining"
             >
               <span className="material-symbols-outlined text-base">timer</span>
               <span className="font-['Space_Grotesk'] font-bold text-xs tracking-wider">

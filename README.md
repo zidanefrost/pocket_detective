@@ -53,6 +53,10 @@ classroom.
   riddle and verification screens.
 - **Progress tracking** — a timer, stage indicator, solved-object inventory, and
   narrative unlocks keep the quest easy to follow.
+- **Score-driven play** — verified answers earn points, wrong submissions and
+  clue timeouts apply penalties, and the final screen records the result.
+- **Dual mission clocks** — every quest has a 20-minute overall limit plus a
+  five-minute target clock that resets for each clue.
 - **Responsive immersive UI** — glass panels, animated scanning effects,
   generated feedback, sound cues, and reduced-motion-aware confetti create a
   game-like experience on mobile and desktop.
@@ -77,6 +81,21 @@ VERIFYING_PHOTO ─────────────────────�
 Next clue, or GAME_OVER after clue three
 ```
 
+## Scoring and timers
+
+RoomQuest uses a simple scoring system that stays visible throughout the game:
+
+- a Gemini-verified correct answer earns **100 points**;
+- an incorrect solution submission deducts **25 points**;
+- exceeding the five-minute target for a clue deducts **25 points once**, but
+  the player can continue searching while overall mission time remains;
+- a host override advances the clue without awarding bonus points.
+
+Scores may fall below zero. Each clue starts with a fresh five-minute target,
+while one 20-minute mission clock covers the entire quest. Solving the final
+clue stops the clock; reaching zero ends the mission and shows the evidence and
+score collected so far.
+
 During a quest, React keeps four pieces of core game data:
 
 - the current state-machine step;
@@ -84,8 +103,8 @@ During a quest, React keeps four pieces of core game data:
 - the current clue index;
 - the most recent verification feedback.
 
-Additional UI state controls the timer, inventory, camera modal, navigation,
-captured image preview, and error banner.
+Additional UI state controls the mission and clue timers, score, inventory,
+camera modal, navigation, captured image preview, and error banner.
 
 ## Architecture
 

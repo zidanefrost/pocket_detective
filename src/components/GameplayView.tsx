@@ -7,6 +7,11 @@ interface GameplayViewProps {
   totalStages: number;
   openingNarrative: string;
   currentClue: ClueItem;
+  clueTimerSeconds: number;
+  score: number;
+  correctAnswerPoints: number;
+  wrongAnswerPenalty: number;
+  clueTimeoutPenalty: number;
   onOpenCamera: () => void;
 }
 
@@ -15,8 +20,20 @@ export const GameplayView: React.FC<GameplayViewProps> = ({
   totalStages,
   openingNarrative,
   currentClue,
+  clueTimerSeconds,
+  score,
+  correctAnswerPoints,
+  wrongAnswerPenalty,
+  clueTimeoutPenalty,
   onOpenCamera,
 }) => {
+  const clueMinutes = Math.floor(clueTimerSeconds / 60);
+  const clueSeconds = clueTimerSeconds % 60;
+  const formattedClueTime = `${clueMinutes
+    .toString()
+    .padStart(2, '0')}:${clueSeconds.toString().padStart(2, '0')}`;
+  const clueTimeIsLow = clueTimerSeconds <= 60;
+
   return (
     <main className="relative z-10 pt-[88px] pb-[100px] px-5 min-h-[calc(100vh-80px)] flex flex-col justify-between max-w-lg mx-auto w-full custom-scrollbar">
       <div className="flex flex-col gap-6">
@@ -35,6 +52,42 @@ export const GameplayView: React.FC<GameplayViewProps> = ({
             </p>
           </div>
         </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div
+            className={`rounded-2xl border p-3 text-center ${
+              clueTimeIsLow
+                ? 'border-rose-400/40 bg-rose-500/15 text-rose-200'
+                : 'border-indigo-400/30 bg-indigo-500/10 text-indigo-200'
+            }`}
+          >
+            <span className="font-['Space_Grotesk'] text-[9px] font-bold uppercase tracking-widest opacity-70">
+              Clue target
+            </span>
+            <div className="mt-1 flex items-center justify-center gap-1.5">
+              <span className="material-symbols-outlined text-base">hourglass_top</span>
+              <span className="font-['Space_Grotesk'] text-lg font-bold tracking-wider">
+                {formattedClueTime}
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-3 text-center text-amber-200">
+            <span className="font-['Space_Grotesk'] text-[9px] font-bold uppercase tracking-widest opacity-70">
+              Score
+            </span>
+            <div className="mt-1 flex items-center justify-center gap-1.5">
+              <span className="material-symbols-outlined text-base">stars</span>
+              <span className="font-['Space_Grotesk'] text-lg font-bold tracking-wider">
+                {score}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <p className="-mt-3 text-center font-['Space_Grotesk'] text-[9px] uppercase tracking-wider text-white/40">
+          +{correctAnswerPoints} correct · −{wrongAnswerPenalty} wrong · clue timeout −{clueTimeoutPenalty}
+        </p>
 
         {/* The Riddle Card - Artistic Flair Signature Box */}
         <div className="relative w-full bg-gradient-to-br from-emerald-500/15 via-indigo-500/10 to-emerald-500/5 rounded-[36px] p-1 border border-white/20 shadow-2xl flex flex-col my-1">

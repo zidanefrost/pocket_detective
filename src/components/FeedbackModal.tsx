@@ -10,6 +10,7 @@ interface FeedbackModalProps {
   onNextClue: () => void;
   onTryAgain: () => void;
   onHostOverride: () => void;
+  scoreDelta: number;
 }
 
 export const FeedbackModal: React.FC<FeedbackModalProps> = ({
@@ -20,6 +21,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
   onNextClue,
   onTryAgain,
   onHostOverride,
+  scoreDelta,
 }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/85 backdrop-blur-md">
@@ -53,6 +55,9 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
             <p className="font-sans font-semibold text-xs text-emerald-400 tracking-wide mb-3">
               Object Verified: {currentClue.target_object_name}
             </p>
+            <div className="mb-1 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-1.5 font-['Space_Grotesk'] text-xs font-bold tracking-wider text-amber-300">
+              +{scoreDelta} points
+            </div>
 
             {/* Storyline Continuation */}
             <div className="bg-[#121316] border border-white/10 rounded-2xl p-4 my-3 text-left w-full shadow-inner">
@@ -95,6 +100,9 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
             <h2 className="font-serif italic font-bold text-xl text-rose-300 tracking-wide mb-2 uppercase">
               INCORRECT OBJECT
             </h2>
+            <div className="rounded-full border border-rose-400/30 bg-rose-500/10 px-4 py-1.5 font-['Space_Grotesk'] text-xs font-bold tracking-wider text-rose-200">
+              {scoreDelta} points
+            </div>
 
             <div className="bg-[#121316] border border-rose-400/20 rounded-2xl p-4 my-3 text-left w-full">
               <span className="font-['Space_Grotesk'] text-[10px] text-rose-300 uppercase tracking-wider font-bold block mb-1">
@@ -135,6 +143,9 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                 </span>
                 Host override: mark correct
               </button>
+              <p className="text-center font-['Space_Grotesk'] text-[9px] uppercase tracking-wider text-white/35">
+                Host overrides continue the quest without a point bonus
+              </p>
             </div>
           </section>
         )}
