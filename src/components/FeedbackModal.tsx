@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { VerificationResult, ClueItem } from '../types';
 import { playSound } from '../utils/audio';
+import { useSpeech } from '../utils/useSpeech';
+import { AudioReadButton } from './AudioReadButton';
 
 interface FeedbackModalProps {
   isCorrect: boolean;
@@ -19,6 +21,13 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
   onNextClue,
   onTryAgain,
 }) => {
+  const { speak, stop, isSpeaking, isLoading, speakingText } = useSpeech();
+  const storyText = currentClue.storyline_continuation || result.feedback_message;
+
+  useEffect(() => {
+    return () => stop();
+  }, [stop]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/85 backdrop-blur-md">
       <div className="w-full max-w-md z-10 relative">
@@ -54,16 +63,27 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
 
             {/* Storyline Continuation */}
             <div className="bg-[#121316] border border-white/10 rounded-2xl p-4 my-3 text-left w-full shadow-inner">
-              <span className="font-['Space_Grotesk'] text-[10px] text-indigo-400 uppercase tracking-wider font-bold block mb-1">
-                Storyline Progress:
-              </span>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-['Space_Grotesk'] text-[10px] text-indigo-400 uppercase tracking-wider font-bold block">
+                  Storyline Progress:
+                </span>
+                {storyText && (
+                  <AudioReadButton
+                    label="Listen"
+                    isLoading={isLoading && speakingText === storyText}
+                    isSpeaking={isSpeaking && speakingText === storyText}
+                    onToggle={() => speak(storyText)}
+                  />
+                )}
+              </div>
               <p className="font-serif italic text-xs text-white/90 leading-relaxed">
-                "{currentClue.storyline_continuation || result.feedback_message}"
+                "{storyText}"
               </p>
             </div>
 
             <button
               onClick={() => {
+                stop();
                 playSound.click();
                 onNextClue();
               }}
@@ -95,9 +115,19 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
             </h2>
 
             <div className="bg-[#121316] border border-rose-400/20 rounded-2xl p-4 my-3 text-left w-full">
-              <span className="font-['Space_Grotesk'] text-[10px] text-rose-300 uppercase tracking-wider font-bold block mb-1">
-                Gamemaster Feedback:
-              </span>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-['Space_Grotesk'] text-[10px] text-rose-300 uppercase tracking-wider font-bold block">
+                  Gamemaster Feedback:
+                </span>
+                {result.feedback_message && (
+                  <AudioReadButton
+                    label="Listen"
+                    isLoading={isLoading && speakingText === result.feedback_message}
+                    isSpeaking={isSpeaking && speakingText === result.feedback_message}
+                    onToggle={() => speak(result.feedback_message)}
+                  />
+                )}
+              </div>
               <p className="font-sans text-xs text-white/80 leading-relaxed">
                 {result.feedback_message || `The photo submitted does not appear to show "${currentClue.target_object_name}". Look closely at the riddle and try again!`}
               </p>
@@ -105,6 +135,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
 
             <button
               onClick={() => {
+                stop();
                 playSound.click();
                 onTryAgain();
               }}

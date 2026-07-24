@@ -1,7 +1,10 @@
 import express from "express";
 import path from "path";
+import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
+
+dotenv.config();
 
 const app = express();
 const PORT = 3000;
@@ -200,6 +203,67 @@ app.post("/api/verify-solution", async (req, res) => {
     console.error("Error in /api/verify-solution:", error);
     return res.status(500).json({
       error: error.message || "Failed to verify solution image.",
+    });
+  }
+});
+
+// 3. ElevenLabs TTS Voice Synthesis - deep, mysterious British narrator (similar to "Charon")
+app.post("/api/tts", async (req, res) => {
+  try {
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+    if (!apiKey) {
+      return res.status(401).json({
+        error: "ELEVENLABS_API_KEY is missing or unconfigured in .env file.",
+      });
+    }
+
+    const { text } = req.body;
+    if (!text) {
+      return res.status(400).json({ error: "No text provided for speech synthesis." });
+    }
+
+    const voiceId = process.env.ELEVENLABS_VOICE_ID || "JBFqnCBsd6RMkjVDRZzb";
+
+    const elevenResponse = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+      {
+        method: "POST",
+        headers: {
+          "xi-api-key": apiKey,
+          "Content-Type": "application/json",
+          Accept: "audio/mpeg",
+        },
+        body: JSON.stringify({
+          text,
+          // eleven_multilingual_v2 gives the richest, most human narration
+          model_id: "eleven_multilingual_v2",
+          // Tuned for a slow, atmospheric, suspenseful mystery narrator
+          voice_settings: {
+            stability: 0.45,
+            similarity_boost: 0.85,
+            style: 0.55,
+            use_speaker_boost: true,
+          },
+        }),
+      }
+    );
+
+    if (!elevenResponse.ok) {
+      const errText = await elevenResponse.text();
+      throw new Error(
+        `ElevenLabs API error (${elevenResponse.status}): ${errText}`
+      );
+    }
+
+    const arrayBuffer = await elevenResponse.arrayBuffer();
+    const base64Audio = Buffer.from(arrayBuffer).toString("base64");
+    const audioUrl = `data:audio/mpeg;base64,${base64Audio}`;
+
+    return res.json({ success: true, audioUrl });
+  } catch (error: any) {
+    console.error("Error in /api/tts:", error);
+    return res.status(500).json({
+      error: error.message || "Failed to generate TTS audio with ElevenLabs voice.",
     });
   }
 });
