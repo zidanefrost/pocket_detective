@@ -1,5 +1,3 @@
-import type { IncomingMessage, ServerResponse } from "node:http";
-
 import {
   normalizePublicError,
   parseImageDataUrl,
@@ -7,53 +5,54 @@ import {
   verifySolution,
 } from "../src/server/roomQuest";
 
-interface VercelRequest extends IncomingMessage {
-  body?: unknown;
-}
-
-function sendJson(
-  response: ServerResponse,
-  statusCode: number,
-  body: unknown,
-): void {
-  response.statusCode = statusCode;
-  response.setHeader("Content-Type", "application/json; charset=utf-8");
-  response.end(JSON.stringify(body));
-}
-
-export default async function handler(
-  request: VercelRequest,
-  response: ServerResponse,
-): Promise<void> {
-  if (request.method !== "POST") {
-    response.setHeader("Allow", "POST");
-    sendJson(response, 405, { error: "Method not allowed." });
-    return;
-  }
-
+async function parseRequestBody(request: Request): Promise<Record<string, unknown>> {
   try {
-    const body =
-      typeof request.body === "object" && request.body !== null
-        ? (request.body as Record<string, unknown>)
-        : {};
-    if (typeof body.target_object_name !== "string") {
-      throw new PublicError(400, "A target object is required.");
+    const body: unknown = await request.json();
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      throw new PublicError(400, "The request body must be a JSON object.");
+    }
+    return body as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof PublicError) {
+      throw error;
+    }
+    throw new PublicError(400, "The request body is not valid JSON.", {
+      cause: error,
+    });
+  }
+}
+
+export default {
+  async fetch(request: Request): Promise<Response> {
+    if (request.method !== "POST") {
+      return Response.json(
+        { error: "Method not allowed." },
+        { status: 405, headers: { Allow: "POST" } },
+      );
     }
 
-    const image = parseImageDataUrl(body.image);
-    const result = await verifySolution(image, body.target_object_name);
-    sendJson(response, 200, { success: true, data: result });
-  } catch (error) {
-    const publicError = normalizePublicError(error);
-    console.error("RoomQuest verify-solution request failed", {
-      statusCode: publicError.statusCode,
-      errorType:
-        publicError.cause instanceof Error
-          ? publicError.cause.name
-          : publicError.name,
-    });
-    sendJson(response, publicError.statusCode, {
-      error: publicError.publicMessage,
-    });
-  }
-}
+    try {
+      const body = await parseRequestBody(request);
+      if (typeof body.target_object_name !== "string") {
+        throw new PublicError(400, "A target object is required.");
+      }
+
+      const image = parseImageDataUrl(body.image);
+      const result = await verifySolution(image, body.target_object_name);
+      return Response.json({ success: true, data: result });
+    } catch (error) {
+      const publicError = normalizePublicError(error);
+      console.error("RoomQuest verify-solution request failed", {
+        statusCode: publicError.statusCode,
+        errorType:
+          publicError.cause instanceof Error
+            ? publicError.cause.name
+            : publicError.name,
+      });
+      return Response.json(
+        { error: publicError.publicMessage },
+        { status: publicError.statusCode },
+      );
+    }
+  },
+};

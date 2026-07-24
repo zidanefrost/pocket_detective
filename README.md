@@ -138,6 +138,17 @@ Gemini performs two separate multimodal tasks:
 
 ## API endpoints
 
+### `GET /api/health`
+
+Returns a lightweight runtime check without calling Gemini:
+
+```json
+{
+  "ok": true,
+  "service": "roomquest-api"
+}
+```
+
 ### `POST /api/analyze-room`
 
 Generates a quest from a room photo.
@@ -237,6 +248,7 @@ roomquest/
 ├── server.ts                      # Express API, Gemini calls, and validation
 ├── api/
 │   ├── analyze-room.ts            # Vercel quest-generation function
+│   ├── health.ts                  # Vercel runtime health check
 │   └── verify-solution.ts         # Vercel verification function
 ├── src/
 │   ├── api/
