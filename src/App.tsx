@@ -55,13 +55,13 @@ export default function App() {
     setIsInventoryOpen(activeTab === "inventory" || activeTab === "map");
   }, [activeTab]);
 
-  const handleAnalyzeRoom = async (base64Image: string) => {
+  const handleAnalyzeRoom = async (roomImages: string | string[]) => {
     setStep("LOADING_QUEST");
     setErrorMessage(null);
     setLastFeedback(null);
 
     try {
-      const quest = await generateQuest(base64Image);
+      const quest = await generateQuest(roomImages);
       setGameData(quest);
       setCurrentClueIdx(0);
       setInventory([]);
@@ -147,6 +147,29 @@ export default function App() {
     setLastFeedback(null);
     setStep("GAME_OVER");
     playSound.success();
+  };
+
+  const handleHostOverride = () => {
+    const currentClue = gameData?.clues[currentClueIdx];
+    if (!currentClue) return;
+
+    const solvedItem: SolvedInventoryItem = {
+      stage: currentClueIdx + 1,
+      target_object_name: currentClue.target_object_name,
+      poetic_clue: currentClue.poetic_clue,
+      storyline_continuation: currentClue.storyline_continuation,
+      verified_image: solutionImage || undefined,
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+    setInventory((previous) => [
+      ...previous.filter((item) => item.stage !== solvedItem.stage),
+      solvedItem,
+    ]);
+    playSound.success();
+    handleNextClue();
   };
 
   const handleTryAgain = () => {
@@ -235,6 +258,7 @@ export default function App() {
           isFinalStage={currentClueIdx === totalStages - 1}
           onNextClue={handleNextClue}
           onTryAgain={handleTryAgain}
+          onHostOverride={handleHostOverride}
         />
       )}
 
