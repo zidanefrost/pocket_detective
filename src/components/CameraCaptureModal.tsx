@@ -1,12 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { playSound } from '../utils/audio';
-
-const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
-const SUPPORTED_IMAGE_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-]);
+import {
+  prepareImageDataUrl,
+  validateSourceImage,
+} from '../utils/image';
 
 interface CameraCaptureModalProps {
   title: string;
@@ -31,6 +28,7 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isPreparingImage, setIsPreparingImage] = useState(false);
 
   useEffect(() => {
     if (isOpen && !capturedImage) {
@@ -78,42 +76,63 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     if (!videoRef.current) return;
     const video = videoRef.current;
     const canvas = canvasRef.current || document.createElement('canvas');
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    const sourceWidth = video.videoWidth || 640;
+    const sourceHeight = video.videoHeight || 480;
+    const scale = Math.min(1, 1600 / Math.max(sourceWidth, sourceHeight));
+    canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+    canvas.height = Math.max(1, Math.round(sourceHeight * scale));
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      playSound.scan();
-      setCapturedImage(dataUrl);
-      stopCamera();
+      setIsPreparingImage(true);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            setCameraError('The browser could not capture this photo.');
+            setIsPreparingImage(false);
+            return;
+          }
+          void prepareImageDataUrl(blob)
+            .then((dataUrl) => {
+              playSound.scan();
+              setCapturedImage(dataUrl);
+              stopCamera();
+            })
+            .catch((error: unknown) => {
+              setCameraError(
+                error instanceof Error
+                  ? error.message
+                  : 'The browser could not process this photo.',
+              );
+            })
+            .finally(() => setIsPreparingImage(false));
+        },
+        'image/jpeg',
+        0.86,
+      );
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
-      setCameraError('Use a JPEG, PNG, or WebP image.');
-      e.target.value = '';
-      return;
-    }
-    if (file.size > MAX_IMAGE_BYTES) {
-      setCameraError('Please use an image smaller than 15 MB.');
-      e.target.value = '';
-      return;
-    }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      if (result) {
-        playSound.scan();
-        setCapturedImage(result);
-        stopCamera();
-      }
-    };
-    reader.readAsDataURL(file);
+    setCameraError(null);
+    setIsPreparingImage(true);
+    try {
+      validateSourceImage(file);
+      const result = await prepareImageDataUrl(file);
+      playSound.scan();
+      setCapturedImage(result);
+      stopCamera();
+    } catch (error) {
+      setCameraError(
+        error instanceof Error ? error.message : 'Could not use that image.',
+      );
+      e.target.value = '';
+    } finally {
+      setIsPreparingImage(false);
+    }
   };
 
   const toggleCamera = () => {
@@ -249,10 +268,11 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
                   </button>
                   <button
                     onClick={takeSnapshot}
-                    className="flex-1 py-3.5 px-4 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-['Space_Grotesk'] text-xs font-bold uppercase tracking-wider btn-glow-emerald active:scale-95 transition-all flex items-center justify-center gap-2 border border-emerald-400/30 shadow-lg"
+                    disabled={isPreparingImage}
+                    className="flex-1 py-3.5 px-4 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-['Space_Grotesk'] text-xs font-bold uppercase tracking-wider btn-glow-emerald active:scale-95 transition-all flex items-center justify-center gap-2 border border-emerald-400/30 shadow-lg disabled:opacity-50"
                   >
                     <span className="material-symbols-outlined text-lg">camera</span>
-                    Snap Solution
+                    {isPreparingImage ? 'Optimizing…' : 'Snap Solution'}
                   </button>
                 </div>
               )}
@@ -261,17 +281,17 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
                 ref={fileInputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
-                capture="environment"
                 onChange={handleFileUpload}
                 className="hidden"
               />
 
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full py-3 px-4 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 font-['Space_Grotesk'] text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2"
+                disabled={isPreparingImage}
+                className="w-full py-3 px-4 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 font-['Space_Grotesk'] text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <span className="material-symbols-outlined text-base">upload_file</span>
-                Select Photo From Device
+                {isPreparingImage ? 'Optimizing Photo…' : 'Select Photo From Device'}
               </button>
             </div>
           )}

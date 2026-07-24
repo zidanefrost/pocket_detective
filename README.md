@@ -43,6 +43,9 @@ classroom.
   `GAME_OVER`.
 - **Camera and file support** — mobile players can open the rear camera while
   desktop players can upload JPEG, PNG, or WebP images.
+- **Vercel-safe image processing** — room and solution photos are resized and
+  compressed in the browser before upload to stay below serverless payload
+  limits.
 - **Spoiler-aware interface** — target object names are kept out of the active
   riddle and verification screens.
 - **Progress tracking** — a timer, stage indicator, solved-object inventory, and
@@ -98,6 +101,8 @@ responsibilities:
 ### React client
 
 - captures room and solution photos;
+- normalizes uploads to JPEG, limits the longest side to 1,600 pixels, and keeps
+  the processed image below 3 MB;
 - renders loading, gameplay, verification, feedback, and completion views;
 - manages the quest state machine, timer, inventory, and modal state;
 - calls same-origin API endpoints through a typed request helper;
@@ -106,8 +111,10 @@ responsibilities:
 ### Node/Express server
 
 - loads `GEMINI_API_KEY` from the server environment;
-- validates image data URLs, MIME types, payload size, and target names;
-- limits supported images to JPEG, PNG, and WebP under 15 MB;
+- validates processed image data URLs, MIME types, payload size, and target
+  names;
+- accepts processed JPEG images under 3 MB while the browser permits source
+  JPEG, PNG, and WebP files under 15 MB;
 - calls Gemini with a 60-second timeout and up to three attempts;
 - enforces structured output schemas;
 - validates clue count, unique IDs, unique target objects, riddle line count, and
@@ -228,6 +235,9 @@ Errors use an appropriate HTTP status with a safe message:
 ```text
 roomquest/
 ├── server.ts                      # Express API, Gemini calls, and validation
+├── api/
+│   ├── analyze-room.ts            # Vercel quest-generation function
+│   └── verify-solution.ts         # Vercel verification function
 ├── src/
 │   ├── api/
 │   │   └── roomQuest.ts           # Typed browser API client
@@ -242,7 +252,10 @@ roomquest/
 │   ├── data/
 │   │   └── sampleRooms.ts         # Optional sample room presets
 │   ├── utils/
-│   │   └── audio.ts               # Interaction sound effects
+│   │   ├── audio.ts               # Interaction sound effects
+│   │   └── image.ts               # Client resize and compression pipeline
+│   ├── server/
+│   │   └── roomQuest.ts           # Shared Gemini and validation logic
 │   ├── App.tsx                    # Game state and event orchestration
 │   ├── index.css                  # Global effects and animations
 │   ├── main.tsx                   # React entry point
@@ -250,6 +263,7 @@ roomquest/
 ├── .env.example                   # Environment variable template
 ├── package.json                   # Scripts and dependencies
 ├── tsconfig.json
+├── vercel.json                    # Vercel build and function configuration
 └── vite.config.ts
 ```
 
@@ -327,6 +341,7 @@ to browser code.
 | --- | --- |
 | `npm run dev` | Start Express with Vite development middleware |
 | `npm run lint` | Run TypeScript checks without emitting files |
+| `npm run build:client` | Build only the Vite client for Vercel |
 | `npm run build` | Build the React client and bundle the Node server |
 | `npm start` | Run the production server from `dist/server.cjs` |
 | `npm run clean` | Remove generated build output |

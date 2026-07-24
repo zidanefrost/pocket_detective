@@ -1,13 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { SAMPLE_ROOMS } from '../data/sampleRooms';
 import { playSound } from '../utils/audio';
-
-const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
-const SUPPORTED_IMAGE_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-]);
+import {
+  prepareImageDataUrl,
+  validateSourceImage,
+} from '../utils/image';
 
 interface HostSetupViewProps {
   onStartQuest: (base64Image: string) => void;
@@ -24,46 +21,25 @@ export const HostSetupView: React.FC<HostSetupViewProps> = ({
   const [isPreparingImage, setIsPreparingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const fileToDataUrl = (file: Blob) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () =>
-        typeof reader.result === 'string'
-          ? resolve(reader.result)
-          : reject(new Error('Image conversion failed.'));
-      reader.onerror = () => reject(new Error('Could not read that image.'));
-      reader.readAsDataURL(file);
-    });
-
-  const validateImage = (file: Blob) => {
-    if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
-      throw new Error('Use a JPEG, PNG, or WebP image.');
-    }
-    if (file.size > MAX_IMAGE_BYTES) {
-      throw new Error('Please use an image smaller than 15 MB.');
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setInputError(null);
+    setIsPreparingImage(true);
     try {
-      validateImage(file);
-      void fileToDataUrl(file).then(
-        (result) => {
-          playSound.scan();
-          setSelectedImage(result);
-          setSelectedRoomId('custom');
-        },
-        () => setInputError('Could not read that image. Please try another file.'),
-      );
+      validateSourceImage(file);
+      const result = await prepareImageDataUrl(file);
+      playSound.scan();
+      setSelectedImage(result);
+      setSelectedRoomId('custom');
     } catch (error) {
       setInputError(
         error instanceof Error ? error.message : 'Could not use that image.',
       );
       e.target.value = '';
+    } finally {
+      setIsPreparingImage(false);
     }
   };
 
@@ -81,8 +57,8 @@ export const HostSetupView: React.FC<HostSetupViewProps> = ({
         throw new Error('The sample room could not be loaded.');
       }
       const imageBlob = await response.blob();
-      validateImage(imageBlob);
-      const dataUrl = await fileToDataUrl(imageBlob);
+      validateSourceImage(imageBlob);
+      const dataUrl = await prepareImageDataUrl(imageBlob);
       setSelectedImage(dataUrl);
       setSelectedRoomId(sample.id);
       playSound.scan();
@@ -175,7 +151,6 @@ export const HostSetupView: React.FC<HostSetupViewProps> = ({
             ref={fileInputRef}
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            capture="environment"
             onChange={handleFileChange}
             className="hidden"
           />
@@ -184,7 +159,8 @@ export const HostSetupView: React.FC<HostSetupViewProps> = ({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="flex-1 py-3 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-400 text-emerald-400 font-['Space_Grotesk'] text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
+              disabled={isPreparingImage}
+              className="flex-1 py-3 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-400 text-emerald-400 font-['Space_Grotesk'] text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-base">photo_camera</span>
               Take or Upload Photo
@@ -241,7 +217,7 @@ export const HostSetupView: React.FC<HostSetupViewProps> = ({
           className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-['Space_Grotesk'] font-bold text-sm tracking-wider py-4 rounded-full btn-glow-emerald active:scale-95 transition-all flex justify-center items-center gap-2.5 border border-emerald-400/40 shadow-xl uppercase disabled:opacity-50"
         >
           <span className="material-symbols-outlined text-xl">auto_awesome</span>
-          Analyze Space & Build Quest
+          {isPreparingImage ? 'Optimizing Photo…' : 'Analyze Space & Build Quest'}
         </button>
       </div>
     </main>
