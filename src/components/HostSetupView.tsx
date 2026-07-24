@@ -2,12 +2,20 @@ import React, { useState, useRef } from 'react';
 import { SAMPLE_ROOMS } from '../data/sampleRooms';
 import { playSound } from '../utils/audio';
 import {
+  MAX_ROOM_PHOTO_BYTES,
   prepareImageDataUrl,
   validateSourceImage,
 } from '../utils/image';
 
+const MAX_ROOM_PHOTOS = 3;
+const PHOTO_STEP_TITLES = [
+  'Main room angle (required)',
+  'Second angle (optional)',
+  'Detail angle (optional)',
+];
+
 interface HostSetupViewProps {
-  onStartQuest: (base64Image: string) => void;
+  onStartQuest: (images: string[]) => void;
   isLoading: boolean;
 }
 
@@ -15,7 +23,12 @@ export const HostSetupView: React.FC<HostSetupViewProps> = ({
   onStartQuest,
   isLoading,
 }) => {
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImages, setSelectedImages] = useState<(string | null)[]>([
+    null,
+    null,
+    null,
+  ]);
+  const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [inputError, setInputError] = useState<string | null>(null);
   const [isPreparingImage, setIsPreparingImage] = useState(false);
@@ -29,16 +42,23 @@ export const HostSetupView: React.FC<HostSetupViewProps> = ({
     setIsPreparingImage(true);
     try {
       validateSourceImage(file);
-      const result = await prepareImageDataUrl(file);
+      const result = await prepareImageDataUrl(file, MAX_ROOM_PHOTO_BYTES);
       playSound.scan();
-      setSelectedImage(result);
+      setSelectedImages((previous) =>
+        previous.map((image, index) =>
+          index === activeStepIndex ? result : image,
+        ),
+      );
       setSelectedRoomId('custom');
+      if (activeStepIndex < MAX_ROOM_PHOTOS - 1) {
+        setActiveStepIndex((previous) => previous + 1);
+      }
     } catch (error) {
       setInputError(
         error instanceof Error ? error.message : 'Could not use that image.',
       );
-      e.target.value = '';
     } finally {
+      e.target.value = '';
       setIsPreparingImage(false);
     }
   };
@@ -58,8 +78,12 @@ export const HostSetupView: React.FC<HostSetupViewProps> = ({
       }
       const imageBlob = await response.blob();
       validateSourceImage(imageBlob);
-      const dataUrl = await prepareImageDataUrl(imageBlob);
-      setSelectedImage(dataUrl);
+      const dataUrl = await prepareImageDataUrl(
+        imageBlob,
+        MAX_ROOM_PHOTO_BYTES,
+      );
+      setSelectedImages([dataUrl, null, null]);
+      setActiveStepIndex(0);
       setSelectedRoomId(sample.id);
       playSound.scan();
     } catch {
@@ -72,11 +96,35 @@ export const HostSetupView: React.FC<HostSetupViewProps> = ({
     }
   };
 
-  const handleSubmit = () => {
-    if (!selectedImage || isPreparingImage) return;
+  const handleRemovePhoto = (indexToRemove: number) => {
     playSound.click();
-    onStartQuest(selectedImage);
+    setSelectedImages((previous) => {
+      const remaining = previous.filter(
+        (image, index): image is string =>
+          index !== indexToRemove && typeof image === 'string',
+      );
+      return Array.from(
+        { length: MAX_ROOM_PHOTOS },
+        (_, index) => remaining[index] ?? null,
+      );
+    });
+    setActiveStepIndex((previous) =>
+      Math.min(previous, Math.max(0, selectedImageCount - 2)),
+    );
+    setSelectedRoomId('custom');
   };
+
+  const handleSubmit = () => {
+    const roomImages = selectedImages.filter(
+      (image): image is string => typeof image === 'string',
+    );
+    if (roomImages.length === 0 || isPreparingImage) return;
+    playSound.click();
+    onStartQuest(roomImages);
+  };
+
+  const selectedImageCount = selectedImages.filter(Boolean).length;
+  const currentPreviewImage = selectedImages[activeStepIndex];
 
   return (
     <main className="pt-[88px] pb-[100px] px-5 flex flex-col items-center justify-center min-h-[calc(100vh-80px)] relative z-10 max-w-md mx-auto w-full">
@@ -90,31 +138,68 @@ export const HostSetupView: React.FC<HostSetupViewProps> = ({
 
         <div className="text-center">
           <span className="text-[10px] uppercase tracking-[0.3em] text-emerald-400 font-bold border-l-2 border-emerald-500 pl-2 inline-block mb-1">
-            Initialization
+            Host Room Setup
           </span>
           <h1 className="font-serif italic font-bold text-2xl text-white mb-1">
-            Room Analysis
+            Room Photo Wizard
           </h1>
           <p className="font-sans text-xs text-white/60">
-            Photograph your physical space to transform it into an AI escape room.
+            Add one to three angles so the Gamemaster can understand your space.
           </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          {PHOTO_STEP_TITLES.map((title, stepIndex) => {
+            const hasPhoto = Boolean(selectedImages[stepIndex]);
+            const isActive = activeStepIndex === stepIndex;
+            const isDisabled = stepIndex > 0 && !selectedImages[0];
+            return (
+              <button
+                type="button"
+                key={title}
+                disabled={isDisabled || isPreparingImage}
+                onClick={() => {
+                  playSound.click();
+                  setActiveStepIndex(stepIndex);
+                }}
+                className={`rounded-xl border px-1 py-2 text-center font-['Space_Grotesk'] text-[10px] uppercase tracking-wide transition-all disabled:cursor-not-allowed disabled:opacity-35 ${
+                  isActive
+                    ? 'border-emerald-400 bg-emerald-500/20 text-emerald-200 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                    : hasPhoto
+                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
+                      : 'border-white/10 bg-[#121316] text-white/45'
+                }`}
+              >
+                <span className="block font-bold">Photo {stepIndex + 1}</span>
+                <span className="mt-0.5 block normal-case tracking-normal opacity-70">
+                  {stepIndex === 0 ? 'Main' : 'Optional'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="rounded-xl border border-white/10 bg-[#121316] px-3 py-2 text-center">
+          <span className="font-['Space_Grotesk'] text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+            {PHOTO_STEP_TITLES[activeStepIndex]}
+          </span>
         </div>
 
         {/* Room Scan Viewfinder Box */}
         <div className="relative w-full aspect-[3/4] rounded-2xl overflow-hidden bg-[#121316] flex items-center justify-center border border-emerald-500/40 group shadow-inner">
           {/* Background Image Preview */}
-          {selectedImage ? (
+          {currentPreviewImage ? (
             <div
               className="absolute inset-0 bg-cover bg-center transition-all duration-300"
-              style={{ backgroundImage: `url('${selectedImage}')` }}
+              style={{ backgroundImage: `url('${currentPreviewImage}')` }}
             />
           ) : (
             <div className="flex flex-col items-center gap-3 text-white/45">
               <span className="material-symbols-outlined text-5xl text-emerald-400/70">
                 add_a_photo
               </span>
-              <span className="text-xs uppercase tracking-widest">
-                Add a room photo
+              <span className="px-5 text-center text-xs uppercase tracking-widest">
+                Add {PHOTO_STEP_TITLES[activeStepIndex]}
               </span>
             </div>
           )}
@@ -141,9 +226,50 @@ export const HostSetupView: React.FC<HostSetupViewProps> = ({
 
           {/* Status Badge */}
           <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-md px-4 py-1 rounded-full font-['Space_Grotesk'] text-[10px] text-emerald-400 tracking-widest border border-emerald-500/40 uppercase shadow-lg">
-            {selectedImage ? 'SCAN READY' : 'AWAITING SCAN'}
+            {selectedImageCount > 0
+              ? `${selectedImageCount} PHOTO${selectedImageCount === 1 ? '' : 'S'} READY`
+              : 'AWAITING SCAN'}
           </div>
         </div>
+
+        {selectedImageCount > 0 && (
+          <div className="flex justify-center gap-2" aria-label="Selected room photos">
+            {selectedImages.map(
+              (image, imageIndex) =>
+                image && (
+                  <div
+                    key={`${imageIndex}-${image.slice(-12)}`}
+                    className={`group relative h-16 w-16 overflow-hidden rounded-xl border-2 transition-all ${
+                      activeStepIndex === imageIndex
+                        ? 'border-emerald-400 ring-2 ring-emerald-500/40'
+                        : 'border-white/20 opacity-70 hover:opacity-100'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setActiveStepIndex(imageIndex)}
+                      className="h-full w-full"
+                      aria-label={`Edit room photo ${imageIndex + 1}`}
+                    >
+                      <img
+                        src={image}
+                        alt={`Room angle ${imageIndex + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePhoto(imageIndex)}
+                      className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-rose-600/95 text-xs text-white shadow"
+                      aria-label={`Remove room photo ${imageIndex + 1}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ),
+            )}
+          </div>
+        )}
 
         {/* File Upload / Sample Room Controls */}
         <div className="flex flex-col gap-3">
@@ -163,7 +289,9 @@ export const HostSetupView: React.FC<HostSetupViewProps> = ({
               className="flex-1 py-3 px-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-400 text-emerald-400 font-['Space_Grotesk'] text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-base">photo_camera</span>
-              Take or Upload Photo
+              {currentPreviewImage
+                ? `Replace Photo ${activeStepIndex + 1}`
+                : `Add Photo ${activeStepIndex + 1}`}
             </button>
           </div>
 
@@ -213,11 +341,15 @@ export const HostSetupView: React.FC<HostSetupViewProps> = ({
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={isLoading || isPreparingImage || !selectedImage}
+          disabled={
+            isLoading || isPreparingImage || selectedImageCount === 0
+          }
           className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-['Space_Grotesk'] font-bold text-sm tracking-wider py-4 rounded-full btn-glow-emerald active:scale-95 transition-all flex justify-center items-center gap-2.5 border border-emerald-400/40 shadow-xl uppercase disabled:opacity-50"
         >
           <span className="material-symbols-outlined text-xl">auto_awesome</span>
-          {isPreparingImage ? 'Optimizing Photo…' : 'Analyze Space & Build Quest'}
+          {isPreparingImage
+            ? 'Optimizing Photo…'
+            : `Build Quest (${selectedImageCount} Photo${selectedImageCount === 1 ? '' : 's'})`}
         </button>
       </div>
     </main>

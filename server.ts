@@ -8,6 +8,7 @@ import {
   generateQuest,
   normalizePublicError,
   parseImageDataUrl,
+  parseRoomImageDataUrls,
   PublicError,
   verifySolution,
 } from "./src/server/roomQuest";
@@ -35,8 +36,10 @@ app.use(express.json({ limit: "4.2mb" }));
 
 app.post("/api/analyze-room", async (request, response) => {
   try {
-    const image = parseImageDataUrl(request.body?.image);
-    const questData = await generateQuest(image);
+    const images = parseRoomImageDataUrls(
+      request.body?.images ?? request.body?.image,
+    );
+    const questData = await generateQuest(images);
     response.json({ success: true, data: questData });
   } catch (error) {
     sendRouteError(error, response);

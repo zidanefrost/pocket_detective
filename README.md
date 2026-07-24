@@ -15,8 +15,9 @@ the object and submitting a close-up photo for AI verification.
 Traditional escape rooms require a purpose-built location and fixed puzzle
 design. RoomQuest builds a new game from the room the player is already in:
 
-1. The player takes or uploads a wide photo of a room.
-2. Gemini analyzes the image and chooses exactly three distinct visible objects.
+1. The host takes or uploads one to three wide photos of a room.
+2. Gemini analyzes the room angles together and chooses exactly three distinct
+   visible objects.
 3. RoomQuest generates an opening narrative and a rhyming riddle for each
    object.
 4. The player searches the physical room and submits a close-up solution photo.
@@ -34,6 +35,8 @@ classroom.
 
 - **Room-aware quest generation** — Gemini uses the uploaded room image to
   select real, visible objects instead of inventing generic targets.
+- **Multi-angle room setup** — a guided host wizard accepts one required room
+  view and up to two optional angles for better object selection.
 - **Multimodal answer verification** — every solution is checked from a new
   close-up image against the current clue's target.
 - **Structured AI output** — both Gemini calls use strict JSON schemas, followed
@@ -57,6 +60,8 @@ classroom.
   never shipped in the React bundle.
 - **Safe failure behavior** — API failures never silently mark a solution as
   correct. The player receives a recoverable error and can retry.
+- **Host override** — if vision rejects a valid answer, the host can mark the
+  current object correct and keep the game moving.
 
 ## Gameplay flow
 
@@ -100,9 +105,10 @@ responsibilities:
 
 ### React client
 
-- captures room and solution photos;
-- normalizes uploads to JPEG, limits the longest side to 1,600 pixels, and keeps
-  the processed image below 3 MB;
+- captures up to three room angles and individual solution photos;
+- normalizes uploads to JPEG and limits the longest side to 1,600 pixels;
+- keeps each room angle below 900 KB and solution photos below 3 MB so encoded
+  requests remain within Vercel's function payload limit;
 - renders loading, gameplay, verification, feedback, and completion views;
 - manages the quest state machine, timer, inventory, and modal state;
 - calls same-origin API endpoints through a typed request helper;
@@ -113,8 +119,9 @@ responsibilities:
 - loads `GEMINI_API_KEY` from the server environment;
 - validates processed image data URLs, MIME types, payload size, and target
   names;
-- accepts processed JPEG images under 3 MB while the browser permits source
-  JPEG, PNG, and WebP files under 15 MB;
+- accepts one to three room images with a combined decoded size below 3 MB and
+  individual solution images below 3 MB, while the browser permits source JPEG,
+  PNG, and WebP files under 15 MB each;
 - calls Gemini with a 60-second timeout and up to three attempts;
 - enforces structured output schemas;
 - validates clue count, unique IDs, unique target objects, riddle line count, and
@@ -131,8 +138,8 @@ environment variable.
 
 Gemini performs two separate multimodal tasks:
 
-1. **Quest generation** analyzes the wide room photo and returns the opening
-   narrative plus exactly three object-based clues.
+1. **Quest generation** analyzes one to three views of the same room and returns
+   the opening narrative plus exactly three object-based clues.
 2. **Solution verification** compares a close-up submission with the current
    target and returns a verdict, detected item, and player-facing feedback.
 
@@ -151,15 +158,21 @@ Returns a lightweight runtime check without calling Gemini:
 
 ### `POST /api/analyze-room`
 
-Generates a quest from a room photo.
+Generates a quest from one to three views of the same room.
 
 Request:
 
 ```json
 {
-  "image": "data:image/jpeg;base64,..."
+  "images": [
+    "data:image/jpeg;base64,...",
+    "data:image/jpeg;base64,..."
+  ]
 }
 ```
+
+The `image` field is still accepted for backward compatibility with older
+single-photo clients.
 
 Successful response:
 
@@ -430,5 +443,6 @@ are generated in `dist/`.
 
 ### An image is rejected
 
-Use a JPEG, PNG, or WebP file under 15 MB. A wide, well-lit room photo produces
-better quest objects; a clear close-up produces more reliable verification.
+Use JPEG, PNG, or WebP files under 15 MB each. One wide, well-lit main room
+photo is required; up to two additional angles can improve object selection. A
+clear close-up produces more reliable solution verification.

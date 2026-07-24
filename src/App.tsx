@@ -55,13 +55,13 @@ export default function App() {
     setIsInventoryOpen(activeTab === "inventory" || activeTab === "map");
   }, [activeTab]);
 
-  const handleAnalyzeRoom = async (base64Image: string) => {
+  const handleAnalyzeRoom = async (roomImages: string[]) => {
     setStep("LOADING_QUEST");
     setErrorMessage(null);
     setLastFeedback(null);
 
     try {
-      const quest = await generateQuest(base64Image);
+      const quest = await generateQuest(roomImages);
       setGameData(quest);
       setCurrentClueIdx(0);
       setInventory([]);
@@ -78,6 +78,27 @@ export default function App() {
       );
       setStep("SCAN_ROOM");
     }
+  };
+
+  const recordSolvedClue = (
+    currentClue: ClueItem,
+    verifiedImage?: string,
+  ) => {
+    const solvedItem: SolvedInventoryItem = {
+      stage: currentClueIdx + 1,
+      target_object_name: currentClue.target_object_name,
+      poetic_clue: currentClue.poetic_clue,
+      storyline_continuation: currentClue.storyline_continuation,
+      verified_image: verifiedImage,
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
+    setInventory((previous) => [
+      ...previous.filter((item) => item.stage !== solvedItem.stage),
+      solvedItem,
+    ]);
   };
 
   const handleVerifySolution = async (capturedImage: string) => {
@@ -100,21 +121,7 @@ export default function App() {
       setLastFeedback(result);
 
       if (result.is_correct) {
-        const solvedItem: SolvedInventoryItem = {
-          stage: currentClueIdx + 1,
-          target_object_name: currentClue.target_object_name,
-          poetic_clue: currentClue.poetic_clue,
-          storyline_continuation: currentClue.storyline_continuation,
-          verified_image: capturedImage,
-          timestamp: new Date().toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        };
-        setInventory((previous) => [
-          ...previous.filter((item) => item.stage !== solvedItem.stage),
-          solvedItem,
-        ]);
+        recordSolvedClue(currentClue, capturedImage);
         playSound.success();
       } else {
         playSound.failure();
@@ -153,6 +160,16 @@ export default function App() {
     setSolutionImage(null);
     setLastFeedback(null);
     setActiveTab("clues");
+  };
+
+  const handleHostOverride = () => {
+    const currentClue = gameData?.clues[currentClueIdx];
+    if (!currentClue) {
+      return;
+    }
+    recordSolvedClue(currentClue, solutionImage ?? undefined);
+    playSound.success();
+    handleNextClue();
   };
 
   const handleResetQuest = () => {
@@ -235,6 +252,7 @@ export default function App() {
           isFinalStage={currentClueIdx === totalStages - 1}
           onNextClue={handleNextClue}
           onTryAgain={handleTryAgain}
+          onHostOverride={handleHostOverride}
         />
       )}
 

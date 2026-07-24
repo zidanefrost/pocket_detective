@@ -1,7 +1,7 @@
 import {
   generateQuest,
   normalizePublicError,
-  parseImageDataUrl,
+  parseRoomImageDataUrls,
   PublicError,
 } from "../src/server/roomQuest.js";
 
@@ -33,8 +33,8 @@ export default {
 
     try {
       const body = await parseRequestBody(request);
-      const image = parseImageDataUrl(body.image);
-      const quest = await generateQuest(image);
+      const images = parseRoomImageDataUrls(body.images ?? body.image);
+      const quest = await generateQuest(images);
       return Response.json({ success: true, data: quest });
     } catch (error) {
       const publicError = normalizePublicError(error);

@@ -1,5 +1,9 @@
 import type { GoogleGenAI } from "@google/genai/web";
 
+import {
+  QUEST_SYSTEM_INSTRUCTION,
+  VERIFICATION_SYSTEM_INSTRUCTION,
+} from "../data/prompts.js";
 import type {
   ClueItem,
   QuestData,
@@ -12,12 +16,12 @@ const REQUEST_TIMEOUT_MS = 60_000;
 // A 3 MB binary image becomes roughly 4 MB after base64 encoding, leaving
 // enough room below Vercel Functions' 4.5 MB request-body limit for JSON.
 export const MAX_API_IMAGE_BYTES = 3 * 1024 * 1024;
-
-const QUEST_SYSTEM_INSTRUCTION =
-  "You are the AI Gamemaster for RoomQuest. Analyze the room photo, select 3 distinct physical objects visible in the image, and generate an opening storyline and 3 rhyming riddles in strict JSON.";
+export const MAX_ROOM_IMAGES = 3;
+export const MAX_ROOM_IMAGES_TOTAL_BYTES = 3 * 1024 * 1024;
 
 const QUEST_PROMPT = [
-  "Build a three-stage physical escape-room quest from this room photo.",
+  "Build a three-stage physical escape-room quest from the submitted view or views of one room.",
+  "Use all submitted views to understand the room, but do not assume an object exists unless it is clearly visible.",
   "Select exactly three distinct, clearly visible physical objects.",
   "Each target_object_name must be visually specific enough to verify in a close-up.",
   "Do not select people, body parts, reflections, screens, text, or mostly hidden objects.",
@@ -197,6 +201,33 @@ export function parseImageDataUrl(value: unknown): ParsedImage {
   return { mimeType, data };
 }
 
+export function parseRoomImageDataUrls(value: unknown): ParsedImage[] {
+  const rawImages = Array.isArray(value) ? value : [value];
+  if (
+    rawImages.length === 0 ||
+    rawImages.length > MAX_ROOM_IMAGES ||
+    rawImages.some((image) => image === undefined || image === null)
+  ) {
+    throw new PublicError(
+      400,
+      `Submit between 1 and ${MAX_ROOM_IMAGES} room photos.`,
+    );
+  }
+
+  const images = rawImages.map(parseImageDataUrl);
+  const totalBytes = images.reduce(
+    (total, image) => total + Buffer.byteLength(image.data, "base64"),
+    0,
+  );
+  if (totalBytes > MAX_ROOM_IMAGES_TOTAL_BYTES) {
+    throw new PublicError(
+      413,
+      "The processed room photos are too large together. Remove an angle or choose smaller photos.",
+    );
+  }
+  return images;
+}
+
 export function parseQuestData(value: unknown): QuestData {
   if (!isRecord(value)) {
     throw new PublicError(502, "Gemini returned an invalid quest.");
@@ -321,14 +352,23 @@ export function normalizePublicError(error: unknown): PublicError {
   );
 }
 
-export async function generateQuest(image: ParsedImage): Promise<QuestData> {
+export async function generateQuest(images: ParsedImage[]): Promise<QuestData> {
+  if (images.length === 0 || images.length > MAX_ROOM_IMAGES) {
+    throw new PublicError(
+      400,
+      `Submit between 1 and ${MAX_ROOM_IMAGES} room photos.`,
+    );
+  }
+
   try {
     const client = await getGenAI();
     const response = await client.models.generateContent({
       model: MODEL_NAME,
       contents: {
         parts: [
-          { inlineData: { mimeType: image.mimeType, data: image.data } },
+          ...images.map((image) => ({
+            inlineData: { mimeType: image.mimeType, data: image.data },
+          })),
           { text: QUEST_PROMPT },
         ],
       },
@@ -366,8 +406,7 @@ export async function verifySolution(
         ],
       },
       config: {
-        systemInstruction:
-          "You are the RoomQuest AI Gamemaster verifying a player's solution. Be accurate, fair, playful, and never reveal the target object when the answer is wrong.",
+        systemInstruction: VERIFICATION_SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
         responseJsonSchema: VERIFICATION_RESPONSE_SCHEMA,
       },

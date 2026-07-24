@@ -1,5 +1,6 @@
 const MAX_SOURCE_IMAGE_BYTES = 15 * 1024 * 1024;
 const MAX_PROCESSED_IMAGE_BYTES = 3 * 1024 * 1024;
+export const MAX_ROOM_PHOTO_BYTES = 900 * 1024;
 const MAX_IMAGE_SIDE = 1_600;
 const SUPPORTED_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -66,8 +67,19 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-export async function prepareImageDataUrl(image: Blob): Promise<string> {
+export async function prepareImageDataUrl(
+  image: Blob,
+  maxProcessedBytes = MAX_PROCESSED_IMAGE_BYTES,
+): Promise<string> {
   validateSourceImage(image);
+  if (
+    !Number.isFinite(maxProcessedBytes) ||
+    maxProcessedBytes <= 0 ||
+    maxProcessedBytes > MAX_PROCESSED_IMAGE_BYTES
+  ) {
+    throw new Error("The requested image size limit is invalid.");
+  }
+
   const source = await loadImage(image);
   const initialScale = Math.min(
     1,
@@ -97,13 +109,13 @@ export async function prepareImageDataUrl(image: Blob): Promise<string> {
       if (!smallestBlob || processedBlob.size < smallestBlob.size) {
         smallestBlob = processedBlob;
       }
-      if (processedBlob.size <= MAX_PROCESSED_IMAGE_BYTES) {
+      if (processedBlob.size <= maxProcessedBytes) {
         return blobToDataUrl(processedBlob);
       }
     }
   }
 
-  if (smallestBlob && smallestBlob.size <= MAX_PROCESSED_IMAGE_BYTES) {
+  if (smallestBlob && smallestBlob.size <= maxProcessedBytes) {
     return blobToDataUrl(smallestBlob);
   }
   throw new Error(
