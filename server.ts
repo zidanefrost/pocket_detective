@@ -29,14 +29,27 @@ function sendRouteError(error: unknown, response: Response): void {
     .json({ error: publicError.publicMessage });
 }
 
-// Processed images are capped at 3 MB. Base64 and JSON overhead bring the
-// request close to 4 MB, so 4.2 MB safely mirrors Vercel's outer limit.
-app.use(express.json({ limit: "4.2mb" }));
+// Support base64 image payloads up to 20 MB
+app.use(express.json({ limit: "20mb" }));
 
 app.post("/api/analyze-room", async (request, response) => {
   try {
-    const image = parseImageDataUrl(request.body?.image);
-    const questData = await generateQuest(image);
+    const rawImages = Array.isArray(request.body?.images)
+      ? request.body.images
+      : request.body?.image
+        ? [request.body.image]
+        : [];
+
+    if (rawImages.length === 0) {
+      throw new PublicError(400, "At least one room photo is required.");
+    }
+
+    const imagesToParse = rawImages.slice(0, 3);
+    const parsedImages = imagesToParse.map((img: unknown) =>
+      parseImageDataUrl(img),
+    );
+
+    const questData = await generateQuest(parsedImages);
     response.json({ success: true, data: questData });
   } catch (error) {
     sendRouteError(error, response);

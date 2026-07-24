@@ -10,6 +10,7 @@ export interface ClueItem {
   target_object_name: string;
   poetic_clue: string;
   storyline_continuation: string;
+  visual_keywords?: string[];
 }
 
 export interface QuestData {
