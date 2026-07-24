@@ -1,4 +1,4 @@
-import type { GoogleGenAI } from "@google/genai";
+import type { GoogleGenAI } from "@google/genai/web";
 
 import type {
   ClueItem,
@@ -131,7 +131,9 @@ async function getGenAI(): Promise<GoogleGenAI> {
     );
   }
 
-  genAIClientPromise ??= import("@google/genai").then(
+  // Vercel's web-standard function handlers already provide fetch. Using the
+  // SDK's web entry avoids loading Node-only stream modules during cold starts.
+  genAIClientPromise ??= import("@google/genai/web").then(
     ({ GoogleGenAI: GoogleGenAIClient }) =>
       new GoogleGenAIClient({
         apiKey,
