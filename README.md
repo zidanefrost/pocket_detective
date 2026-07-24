@@ -5,6 +5,10 @@ game. The React frontend handles the camera and game state; the Node/Express
 server keeps the Gemini API key private and performs multimodal quest generation
 and solution verification with `gemini-3.6-flash`.
 
+## Live app
+
+Play RoomQuest at [pocket-detective.vercel.app](https://pocket-detective.vercel.app/).
+
 ## Run locally
 
 Prerequisites: Node.js 20 or newer and a Gemini API key.
