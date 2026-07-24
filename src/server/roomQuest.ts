@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import type { GoogleGenAI } from "@google/genai";
 
 import type {
   ClueItem,
@@ -120,9 +120,9 @@ export interface ParsedImage {
   data: string;
 }
 
-let genAIClient: GoogleGenAI | undefined;
+let genAIClientPromise: Promise<GoogleGenAI> | undefined;
 
-function getGenAI(): GoogleGenAI {
+async function getGenAI(): Promise<GoogleGenAI> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
     throw new PublicError(
@@ -131,14 +131,17 @@ function getGenAI(): GoogleGenAI {
     );
   }
 
-  genAIClient ??= new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      timeout: REQUEST_TIMEOUT_MS,
-      retryOptions: { attempts: 3 },
-    },
-  });
-  return genAIClient;
+  genAIClientPromise ??= import("@google/genai").then(
+    ({ GoogleGenAI: GoogleGenAIClient }) =>
+      new GoogleGenAIClient({
+        apiKey,
+        httpOptions: {
+          timeout: REQUEST_TIMEOUT_MS,
+          retryOptions: { attempts: 3 },
+        },
+      }),
+  );
+  return genAIClientPromise;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -318,7 +321,8 @@ export function normalizePublicError(error: unknown): PublicError {
 
 export async function generateQuest(image: ParsedImage): Promise<QuestData> {
   try {
-    const response = await getGenAI().models.generateContent({
+    const client = await getGenAI();
+    const response = await client.models.generateContent({
       model: MODEL_NAME,
       contents: {
         parts: [
@@ -348,7 +352,8 @@ export async function verifySolution(
   }
 
   try {
-    const response = await getGenAI().models.generateContent({
+    const client = await getGenAI();
+    const response = await client.models.generateContent({
       model: MODEL_NAME,
       contents: {
         parts: [
