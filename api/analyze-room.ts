@@ -33,8 +33,21 @@ export default {
 
     try {
       const body = await parseRequestBody(request);
-      const image = parseImageDataUrl(body.image);
-      const quest = await generateQuest(image);
+      const rawImages = Array.isArray(body.images)
+        ? body.images
+        : body.image
+          ? [body.image]
+          : [];
+
+      if (rawImages.length === 0) {
+        throw new PublicError(400, "At least one room photo is required.");
+      }
+
+      const parsedImages = rawImages
+        .slice(0, 3)
+        .map((img: unknown) => parseImageDataUrl(img));
+
+      const quest = await generateQuest(parsedImages);
       return Response.json({ success: true, data: quest });
     } catch (error) {
       const publicError = normalizePublicError(error);
