@@ -2,12 +2,10 @@ import React from 'react';
 
 interface VerificationViewProps {
   solutionImage: string | null;
-  targetObjectName: string;
 }
 
 export const VerificationView: React.FC<VerificationViewProps> = ({
   solutionImage,
-  targetObjectName,
 }) => {
   return (
     <main className="relative z-10 pt-[90px] pb-[100px] px-5 min-h-[calc(100vh-80px)] flex flex-col items-center justify-center max-w-sm mx-auto w-full">
@@ -64,7 +62,8 @@ export const VerificationView: React.FC<VerificationViewProps> = ({
               VISION ENGINE ANALYZING
             </p>
             <p className="font-sans text-xs text-white/70 leading-snug">
-              Gemini verifying item <span className="text-emerald-400 font-semibold font-serif italic">"{targetObjectName}"</span> against room spatial layout...
+              Gemini is comparing your evidence against the current riddle
+              without revealing the answer...
             </p>
           </div>
         </div>

@@ -2,6 +2,15 @@ import React from 'react';
 import { SolvedInventoryItem } from '../types';
 import { playSound } from '../utils/audio';
 
+const CONFETTI_COLORS = ['#10b981', '#34d399', '#6366f1', '#f59e0b'];
+const CONFETTI_PIECES = Array.from({ length: 36 }, (_, index) => ({
+  id: index,
+  left: `${(index * 29) % 100}%`,
+  delay: `${(index % 12) * 0.12}s`,
+  duration: `${2.8 + (index % 7) * 0.24}s`,
+  color: CONFETTI_COLORS[index % CONFETTI_COLORS.length],
+}));
+
 interface QuestCompleteViewProps {
   inventory: SolvedInventoryItem[];
   elapsedSeconds: number;
@@ -21,7 +30,25 @@ export const QuestCompleteView: React.FC<QuestCompleteViewProps> = ({
 
   return (
     <main className="relative z-10 pt-[90px] pb-[100px] px-5 min-h-[calc(100vh-80px)] flex flex-col items-center justify-center max-w-md mx-auto w-full custom-scrollbar">
-      <div className="bg-[#0a0b0e] glass-panel success-glow rounded-[32px] p-8 w-full flex flex-col items-center text-center gap-5 border border-emerald-500/50 shadow-[0_0_60px_rgba(16,185,129,0.3)] animate-in fade-in zoom-in-95 duration-300 relative overflow-hidden">
+      <div
+        className="fixed inset-0 pointer-events-none overflow-hidden"
+        aria-hidden="true"
+      >
+        {CONFETTI_PIECES.map((piece) => (
+          <span
+            key={piece.id}
+            className="confetti-piece"
+            style={{
+              left: piece.left,
+              animationDelay: piece.delay,
+              animationDuration: piece.duration,
+              backgroundColor: piece.color,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="bg-[#0a0b0e] glass-panel success-glow rounded-[32px] p-8 w-full flex flex-col items-center text-center gap-5 border border-emerald-500/50 shadow-[0_0_60px_rgba(16,185,129,0.3)] animate-in fade-in zoom-in-95 duration-300 relative z-10 overflow-hidden">
         {/* Corner Brackets */}
         <div className="absolute top-5 left-5 w-3.5 h-3.5 border-t border-l border-white/20 pointer-events-none" />
         <div className="absolute top-5 right-5 w-3.5 h-3.5 border-t border-r border-white/20 pointer-events-none" />

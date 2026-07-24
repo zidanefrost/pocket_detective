@@ -15,7 +15,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   setActiveTab,
   solvedCount,
 }) => {
-  if (gameState === 'QUEST_LOADING' || gameState === 'VERIFYING') {
+  if (gameState === 'LOADING_QUEST' || gameState === 'VERIFYING_PHOTO') {
     return null; // Suppressed during loading / verification overlay as specified
   }
 
@@ -49,7 +49,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               : 'text-white/50 hover:text-emerald-400'
           }`}
         >
-          {gameState === 'GAMEPLAY' && (
+          {gameState === 'PLAYING_CLUE' && (
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
           )}
           <span className="material-symbols-outlined text-xl">search_check</span>

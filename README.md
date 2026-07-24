@@ -1,20 +1,41 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# RoomQuest
 
-# Run and deploy your AI Studio app
+RoomQuest turns a photo of a physical room into a three-stage AI escape-room
+game. The React frontend handles the camera and game state; the Node/Express
+server keeps the Gemini API key private and performs multimodal quest generation
+and solution verification with `gemini-3.6-flash`.
 
-This contains everything you need to run your app locally.
+## Run locally
 
-View your app in AI Studio: https://ai.studio/apps/1361720c-e22e-4da6-bd6d-7a39296c9708
-
-## Run Locally
-
-**Prerequisites:**  Node.js
-
+Prerequisites: Node.js 20 or newer and a Gemini API key.
 
 1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+
+   ```bash
+   npm install
+   ```
+
+2. Copy `.env.example` to `.env` and set:
+
+   ```dotenv
+   GEMINI_API_KEY="your-key"
+   ```
+
+3. Start the React and Node development server:
+
+   ```bash
+   npm run dev
+   ```
+
+4. Open <http://localhost:3000>.
+
+## Validation and production
+
+```bash
+npm run lint
+npm run build
+npm start
+```
+
+The browser never receives `GEMINI_API_KEY`. It calls `/api/analyze-room` and
+`/api/verify-solution`, and the Express server makes the Gemini requests.

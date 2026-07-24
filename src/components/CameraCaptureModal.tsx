@@ -1,6 +1,13 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { playSound } from '../utils/audio';
 
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+const SUPPORTED_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
+
 interface CameraCaptureModalProps {
   title: string;
   subtitle?: string;
@@ -86,6 +93,16 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+      setCameraError('Use a JPEG, PNG, or WebP image.');
+      e.target.value = '';
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setCameraError('Please use an image smaller than 15 MB.');
+      e.target.value = '';
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -108,8 +125,17 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
     if (capturedImage) {
       playSound.click();
       onCapture(capturedImage);
+      setCapturedImage(null);
       onClose();
     }
+  };
+
+  const handleClose = () => {
+    playSound.click();
+    setCapturedImage(null);
+    setCameraError(null);
+    stopCamera();
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -135,10 +161,8 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
             )}
           </div>
           <button
-            onClick={() => {
-              playSound.click();
-              onClose();
-            }}
+            type="button"
+            onClick={handleClose}
             className="w-8 h-8 rounded-full bg-white/5 border border-white/10 text-white/70 hover:text-white flex items-center justify-center"
           >
             <span className="material-symbols-outlined text-lg">close</span>
@@ -236,7 +260,8 @@ export const CameraCaptureModal: React.FC<CameraCaptureModalProps> = ({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
+                capture="environment"
                 onChange={handleFileUpload}
                 className="hidden"
               />

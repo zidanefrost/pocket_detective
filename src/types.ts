@@ -1,13 +1,12 @@
 export type GameState =
-  | 'HOST_SETUP'        // State 1: Room Scan & Setup
-  | 'QUEST_LOADING'      // State 2: Gemini generating quest
-  | 'GAMEPLAY'           // State 3: Narrative & Poetic Clue
-  | 'VERIFYING'          // State 4: Solution verification in progress
-  | 'SUCCESS'            // State 5a: Evidence unlocked success modal
-  | 'FAILURE'            // State 5b: Incorrect object failure modal
-  | 'QUEST_COMPLETE';    // State 6: All 3 clues solved!
+  | "SCAN_ROOM"
+  | "LOADING_QUEST"
+  | "PLAYING_CLUE"
+  | "VERIFYING_PHOTO"
+  | "GAME_OVER";
 
 export interface ClueItem {
+  clue_id: number;
   target_object_name: string;
   poetic_clue: string;
   storyline_continuation: string;
@@ -20,6 +19,7 @@ export interface QuestData {
 
 export interface VerificationResult {
   is_correct: boolean;
+  detected_item: string;
   feedback_message: string;
 }
 

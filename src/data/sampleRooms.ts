@@ -9,16 +9,19 @@ export const SAMPLE_ROOMS: SampleRoom[] = [
     sampleOpening: "The heavy steel door locks shut with a sharp metallic clack. Neon cyan conduits pulse along the perimeter walls. To escape this sealed sector, you must decode 3 ancient physical anchors hidden within this room.",
     sampleClues: [
       {
+        clue_id: 1,
         target_object_name: "The Leather Bound Book",
         poetic_clue: "I hold a thousand stories yet cannot speak a word,\nLook close beside the glowing lamp where wisdom is stored.",
         storyline_continuation: "Inside the book's spine, you discover a glowing microchip circuit that decrypts the first lock layer."
       },
       {
+        clue_id: 2,
         target_object_name: "Coffee Mug",
         poetic_clue: "I hold dark warm liquid to start your busy day,\nSearch where caffeine rests before it fades away.",
         storyline_continuation: "Underneath the ceramic base, a hidden optic sensor responds to your touch with a soft green pulse."
       },
       {
+        clue_id: 3,
         target_object_name: "Desk Lamp",
         poetic_clue: "I cast a warm light through the shadowy room,\nLook near my switch to dispel the creeping gloom.",
         storyline_continuation: "Toggling the lamp reveals the final master override code projected onto the wall! The sector door unlocks!"
@@ -33,16 +36,19 @@ export const SAMPLE_ROOMS: SampleRoom[] = [
     sampleOpening: "You find yourself trapped inside the archivist's sanctuary. The room hums with temporal energy. Find the 3 hidden artifacts to realign the room matrix and escape.",
     sampleClues: [
       {
+        clue_id: 1,
         target_object_name: "Ancient Tome",
         poetic_clue: "Bound in dark leather with runes upon the spine,\nFind me on the wooden desk where mysteries align.",
         storyline_continuation: "The tome springs open automatically, releasing a bright cyan glyph."
       },
       {
+        clue_id: 2,
         target_object_name: "Brass Fountain Pen",
         poetic_clue: "My tip leaves dark ink across the blank white page,\nI rest beside the book of a forgotten mage.",
         storyline_continuation: "The pen acts as a mechanical key, slotting perfectly into the desk drawer lock."
       },
       {
+        clue_id: 3,
         target_object_name: "Wall Clock",
         poetic_clue: "My hands turn steadily though I have no arms,\nFind me ticking high above to silence the alarms.",
         storyline_continuation: "Stopping the clock hands at 12:00 unlocks the main portal. Freedom is yours!"

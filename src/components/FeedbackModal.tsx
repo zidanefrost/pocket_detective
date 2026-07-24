@@ -99,8 +99,14 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({
                 Gamemaster Feedback:
               </span>
               <p className="font-sans text-xs text-white/80 leading-relaxed">
-                {result.feedback_message || `The photo submitted does not appear to show "${currentClue.target_object_name}". Look closely at the riddle and try again!`}
+                {result.feedback_message ||
+                  "That photo does not match the current clue. Read the riddle closely and try again!"}
               </p>
+              {result.detected_item && (
+                <p className="font-['Space_Grotesk'] text-[10px] text-white/45 uppercase tracking-wider mt-2">
+                  Vision detected: {result.detected_item}
+                </p>
+              )}
             </div>
 
             <button
