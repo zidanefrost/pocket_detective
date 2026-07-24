@@ -18,7 +18,8 @@ const QUEST_SYSTEM_INSTRUCTION = SYSTEM_PROMPT;
 
 const QUEST_PROMPT = [
   "Build a three-stage physical escape-room quest from this room photo.",
-  "First, privately invent one specific closed mystery for this exact room: a problem introduced at the start and exactly how it gets resolved. Do not output this reasoning step directly.",
+  "First, identify what kind of room this actually is — its function, era, style, and mood (e.g. a server room, a kid's bedroom, a workshop, a study) — and let that real character set the mystery's genre and stakes instead of defaulting to a generic template.",
+  "Then, privately invent one specific closed mystery grounded in that room's character: a problem introduced at the start and exactly how it gets resolved. Do not output this reasoning step directly.",
   "Then scan the room for at least five candidate objects and select exactly three distinct, clearly visible physical objects that YOUR invented mystery specifically needs: one that opens the case, one that complicates or redirects it, and one that resolves it.",
   "Do not just pick the three most obvious or generic objects in the room (e.g. lamp, mug, plant) — choose objects because the story needs them, even if a less prominent object serves the plot better than a more prominent one, provided it is still clearly visible and unambiguous enough to verify from a close-up photo.",
   "Each target_object_name must be visually specific enough to verify in a close-up.",
